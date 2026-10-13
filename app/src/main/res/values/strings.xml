@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">क्षण (Kshan)</string>
+    <string name="app_devanagari">क्षण</string>
+    <string name="app_pronunciation">Kshan • /k-sh-uh-n/</string>
+    <string name="app_meaning">A Moment in Time</string>
+    <string name="app_subtitle">Precision Date Companion</string>
+    <string name="tab_difference">Difference</string>
+    <string name="tab_date_math">Add / Subtract</string>
+    <string name="tab_countdown">Countdowns</string>
+    <string name="tab_widgets">Widgets</string>
+    <string name="start_date">Start Date</string>
+    <string name="end_date">End Date</string>
+    <string name="skip_weekends">Skip Weekends</string>
+    <string name="skip_weekends_desc">Counts Monday to Friday only</string>
+    <string name="pick_date">Pick a Date</string>
+    <string name="days_to_shift">Days to Shift</string>
+    <string name="earlier">Earlier (-)</string>
+    <string name="later">Later (+)</string>
+    <string name="result_date">Result Date</string>
+    <string name="countdowns">Countdowns</string>
+    <string name="add_countdown">Add Countdown</string>
+    <string name="app_widget_title">क्षण (Kshan) Glance</string>
+    <string name="battery_saver">Battery Saver</string>
+    <string name="battery_saver_desc">Pauses background particle animations</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "क्षण (Kshan)",
+  "description": "Precision Date Companion with Devanagari typography, living particle canvas, and reactive home screen widgets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

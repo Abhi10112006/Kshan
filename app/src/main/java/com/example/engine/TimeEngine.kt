@@ -7,6 +7,7 @@ import java.time.Period
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import java.time.temporal.IsoFields
 
 data class DifferenceResult(
     val daysCount: Long,
@@ -30,14 +31,27 @@ data class CountdownTelemetry(
     val status: CountdownStatus
 )
 
+data class QuickJumpItem(
+    val label: String,
+    val targetDate: LocalDate,
+    val daysAdded: Int
+)
+
 data class WidgetTelemetry(
     val dayOfYear: Int,
     val totalDaysInYear: Int,
     val yearProgressPercent: Float,
+    val dayOfMonth: Int,
+    val totalDaysInMonth: Int,
+    val monthProgressPercent: Float,
+    val quarterNumber: Int,
+    val quarterProgressPercent: Float,
+    val nextSeasonName: String,
+    val daysUntilNextSeason: Long,
     val epochMillis: Long,
     val epochSeconds: Long,
-    val julianDate: Double,
-    val martianSol: Double
+    val isoFormattedUtc: String,
+    val quickJumps: List<QuickJumpItem>
 )
 
 object TimeEngine {
@@ -45,6 +59,7 @@ object TimeEngine {
     val DISPLAY_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
     val SHORT_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
     val FULL_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
+    val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("hh:mm a")
 
     fun calculateDifference(
         start: LocalDate,
@@ -189,24 +204,75 @@ object TimeEngine {
 
     fun calculateWidgetTelemetry(now: ZonedDateTime): WidgetTelemetry {
         val localDate = now.toLocalDate()
+        val year = localDate.year
+
+        // 1. Year Progress
         val dayOfYear = localDate.dayOfYear
         val lengthOfYear = localDate.lengthOfYear()
-        val progressPercent = (dayOfYear.toFloat() / lengthOfYear.toFloat()) * 100f
+        val yearProgressPercent = (dayOfYear.toFloat() / lengthOfYear.toFloat()) * 100f
 
+        // 2. Month Progress
+        val dayOfMonth = localDate.dayOfMonth
+        val lengthOfMonth = localDate.lengthOfMonth()
+        val monthProgressPercent = (dayOfMonth.toFloat() / lengthOfMonth.toFloat()) * 100f
+
+        // 3. Quarter Progress
+        val quarter = localDate.get(IsoFields.QUARTER_OF_YEAR)
+        val startOfQuarter = when (quarter) {
+            1 -> LocalDate.of(year, 1, 1)
+            2 -> LocalDate.of(year, 4, 1)
+            3 -> LocalDate.of(year, 7, 1)
+            else -> LocalDate.of(year, 10, 1)
+        }
+        val endOfQuarter = when (quarter) {
+            1 -> LocalDate.of(year, 3, 31)
+            2 -> LocalDate.of(year, 6, 30)
+            3 -> LocalDate.of(year, 9, 30)
+            else -> LocalDate.of(year, 12, 31)
+        }
+        val daysInQuarter = ChronoUnit.DAYS.between(startOfQuarter, endOfQuarter) + 1
+        val daysElapsedInQuarter = ChronoUnit.DAYS.between(startOfQuarter, localDate) + 1
+        val quarterProgressPercent = (daysElapsedInQuarter.toFloat() / daysInQuarter.toFloat()) * 100f
+
+        // 4. Season Countdown (Northern Hemisphere meteorological / astronomical benchmarks)
+        val seasons = listOf(
+            "Spring" to LocalDate.of(year, 3, 20),
+            "Summer" to LocalDate.of(year, 6, 21),
+            "Autumn" to LocalDate.of(year, 9, 22),
+            "Winter" to LocalDate.of(year, 12, 21),
+            "Spring" to LocalDate.of(year + 1, 3, 20)
+        )
+        val nextSeason = seasons.first { it.second.isAfter(localDate) }
+        val daysUntilSeason = ChronoUnit.DAYS.between(localDate, nextSeason.second)
+
+        // 5. Epoch & ISO
         val epochMillis = now.toInstant().toEpochMilli()
         val epochSeconds = epochMillis / 1000
+        val isoFormatted = DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(now)
 
-        val julianDate = (epochMillis / 86400000.0) + 2440587.5
-        val martianSol = (julianDate - 2405522.0028779) / 1.0274912517
+        // 6. Quick Date Jumps
+        val jumps = listOf(
+            QuickJumpItem("+1 Week", localDate.plusWeeks(1), 7),
+            QuickJumpItem("+30 Days", localDate.plusDays(30), 30),
+            QuickJumpItem("+100 Days", localDate.plusDays(100), 100),
+            QuickJumpItem("End of Q$quarter", endOfQuarter, ChronoUnit.DAYS.between(localDate, endOfQuarter).toInt())
+        )
 
         return WidgetTelemetry(
             dayOfYear = dayOfYear,
             totalDaysInYear = lengthOfYear,
-            yearProgressPercent = progressPercent,
+            yearProgressPercent = yearProgressPercent,
+            dayOfMonth = dayOfMonth,
+            totalDaysInMonth = lengthOfMonth,
+            monthProgressPercent = monthProgressPercent,
+            quarterNumber = quarter,
+            quarterProgressPercent = quarterProgressPercent,
+            nextSeasonName = nextSeason.first,
+            daysUntilNextSeason = daysUntilSeason,
             epochMillis = epochMillis,
             epochSeconds = epochSeconds,
-            julianDate = julianDate,
-            martianSol = martianSol
+            isoFormattedUtc = isoFormatted,
+            quickJumps = jumps
         )
     }
 }

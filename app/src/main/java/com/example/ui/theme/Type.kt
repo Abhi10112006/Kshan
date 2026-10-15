@@ -8,20 +8,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.example.R
 
-val DevanagariDisplayFont = FontFamily(
-    Font(R.font.rozha_one, FontWeight.Normal)
+val KalamFont = FontFamily(
+    Font(R.font.kalam, FontWeight.Bold)
 )
 
 val PoppinsFont = FontFamily(
     Font(R.font.poppins, FontWeight.Normal)
 )
 
+val DevanagariDisplayFont = KalamFont
+
 val Typography = Typography(
     displayLarge = TextStyle(
-        fontFamily = DevanagariDisplayFont,
-        fontWeight = FontWeight.Normal,
-        fontSize = 48.sp,
-        lineHeight = 54.sp,
+        fontFamily = KalamFont,
+        fontWeight = FontWeight.Bold,
+        fontSize = 44.sp,
+        lineHeight = 48.sp,
         color = TextPrimary
     ),
     displayMedium = TextStyle(

@@ -13,10 +13,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -45,10 +48,14 @@ data class BurstParticle(
     var y: Float,
     var vx: Float,
     var vy: Float,
-    var size: Float,
+    var width: Float,
+    var height: Float,
+    var rotation: Float,
+    var rotSpeed: Float,
     var alpha: Float,
     var color: Color,
-    var life: Float = 1.0f
+    var life: Float = 1.0f,
+    var isRibbon: Boolean = false
 )
 
 @Composable
@@ -66,9 +73,18 @@ fun LifecycleParticleCanvas(
     val cosmicParticles = remember { mutableStateListOf<CosmicParticle>() }
     val burstParticles = remember { mutableStateListOf<BurstParticle>() }
 
-    // Colors pool
-    val neonColors = remember {
-        listOf(NeonCyan, NeonPurple, NeonBlue, NeonPink, NeonEmerald, Color.White)
+    // Shimmering metallic & vibrant celebration colors
+    val celebrationPalette = remember {
+        listOf(
+            Color(0xFFFFD700), // Rich Gold
+            Color(0xFFFFE066), // Pale Gold
+            NeonCyan,          // Electric Cyan
+            NeonPurple,        // Vibrant Violet
+            NeonPink,          // Radiant Rose
+            NeonEmerald,       // Fresh Emerald
+            NeonBlue,          // Sky Blue
+            Color(0xFFF8FAFC)  // Shimmer Silver
+        )
     }
 
     // Initialize cosmic dust if empty
@@ -83,31 +99,50 @@ fun LifecycleParticleCanvas(
                         vy = (Random.nextFloat() - 0.5f) * 0.8f,
                         size = Random.nextFloat() * 2.5f + 1.2f,
                         alpha = Random.nextFloat() * 0.45f + 0.15f,
-                        color = neonColors.random()
+                        color = celebrationPalette.random()
                     )
                 )
             }
         }
     }
 
-    // Trigger celebration blast
+    // Trigger multi-origin celebration fireworks blast
     LaunchedEffect(triggerCelebration) {
         if (triggerCelebration) {
             burstParticles.clear()
-            for (i in 0 until 120) {
-                val angle = Random.nextFloat() * 2f * Math.PI.toFloat()
-                val speed = Random.nextFloat() * 12f + 4f
-                burstParticles.add(
-                    BurstParticle(
-                        x = width / 2f + (Random.nextFloat() - 0.5f) * 80f,
-                        y = height * 0.4f + (Random.nextFloat() - 0.5f) * 80f,
-                        vx = kotlin.math.cos(angle) * speed,
-                        vy = kotlin.math.sin(angle) * speed - 3f,
-                        size = Random.nextFloat() * 5f + 3f,
-                        alpha = 1.0f,
-                        color = neonColors.random()
+            // 3 launch origins: Center, Left-Up, Right-Up
+            val origins = listOf(
+                Offset(width * 0.5f, height * 0.38f),
+                Offset(width * 0.25f, height * 0.45f),
+                Offset(width * 0.75f, height * 0.42f)
+            )
+
+            origins.forEach { origin ->
+                val particleCount = 55
+                for (i in 0 until particleCount) {
+                    val angle = Random.nextFloat() * 2f * Math.PI.toFloat()
+                    val speed = Random.nextFloat() * 14f + 3f
+                    val isRibbon = Random.nextBoolean()
+                    val pWidth = if (isRibbon) Random.nextFloat() * 10f + 6f else Random.nextFloat() * 6f + 3f
+                    val pHeight = if (isRibbon) Random.nextFloat() * 6f + 3f else pWidth
+
+                    burstParticles.add(
+                        BurstParticle(
+                            x = origin.x + (Random.nextFloat() - 0.5f) * 40f,
+                            y = origin.y + (Random.nextFloat() - 0.5f) * 40f,
+                            vx = kotlin.math.cos(angle) * speed,
+                            vy = kotlin.math.sin(angle) * speed - Random.nextFloat() * 5f,
+                            width = pWidth,
+                            height = pHeight,
+                            rotation = Random.nextFloat() * 360f,
+                            rotSpeed = (Random.nextFloat() - 0.5f) * 16f,
+                            alpha = 1.0f,
+                            color = celebrationPalette.random(),
+                            life = 1.0f,
+                            isRibbon = isRibbon
+                        )
                     )
-                )
+                }
             }
         }
     }
@@ -148,15 +183,17 @@ fun LifecycleParticleCanvas(
                         }
                     }
 
-                    // Update burst particles
+                    // Update burst celebration particles
                     if (burstParticles.isNotEmpty()) {
                         val iterator = burstParticles.iterator()
                         while (iterator.hasNext()) {
                             val bp = iterator.next()
                             bp.x += bp.vx
                             bp.y += bp.vy
-                            bp.vy += 0.35f // Gravity
-                            bp.life -= 0.018f
+                            bp.vx *= 0.965f // Aerodynamic drag
+                            bp.vy += 0.26f  // Gravity
+                            bp.rotation += bp.rotSpeed
+                            bp.life -= 0.012f
                             bp.alpha = bp.life.coerceIn(0f, 1f)
                             if (bp.life <= 0f) {
                                 iterator.remove()
@@ -233,11 +270,22 @@ fun LifecycleParticleCanvas(
 
             // 3. Burst Confetti / Celebration Particles
             for (bp in burstParticles) {
-                drawCircle(
-                    color = bp.color.copy(alpha = bp.alpha),
-                    radius = bp.size,
-                    center = Offset(bp.x, bp.y)
-                )
+                if (bp.isRibbon) {
+                    rotate(degrees = bp.rotation, pivot = Offset(bp.x, bp.y)) {
+                        drawRoundRect(
+                            color = bp.color.copy(alpha = bp.alpha),
+                            topLeft = Offset(bp.x - bp.width / 2f, bp.y - bp.height / 2f),
+                            size = Size(bp.width, bp.height),
+                            cornerRadius = CornerRadius(2f, 2f)
+                        )
+                    }
+                } else {
+                    drawCircle(
+                        color = bp.color.copy(alpha = bp.alpha),
+                        radius = bp.width / 2f,
+                        center = Offset(bp.x, bp.y)
+                    )
+                }
             }
         }
     }

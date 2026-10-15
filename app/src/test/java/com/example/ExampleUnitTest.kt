@@ -75,6 +75,8 @@ class ExampleUnitTest {
         assertTrue(telemetry.dayOfYear in 1..366)
         assertTrue(telemetry.yearProgressPercent in 0.0f..100.0f)
         assertTrue(telemetry.epochMillis > 0)
-        assertTrue(telemetry.julianDate > 2400000.0)
+        assertTrue(telemetry.epochSeconds > 0)
+        assertTrue(telemetry.isoFormattedUtc.isNotEmpty())
+        assertTrue(telemetry.quickJumps.isNotEmpty())
     }
 }

@@ -54,6 +54,7 @@ data class ChronoUiState(
     // Countdown Engine
     val countdownTarget: ZonedDateTime = ZonedDateTime.now().plusDays(30),
     val activeEventTitle: String = "New Year's Celebration",
+    val activeEventCategory: String = "Holiday",
     val countdownTelemetry: CountdownTelemetry = CountdownTelemetry(
         days = 30,
         hours = 0,
@@ -92,7 +93,8 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                         _uiState.update {
                             it.copy(
                                 countdownTarget = parsed,
-                                activeEventTitle = event.title
+                                activeEventTitle = event.title,
+                                activeEventCategory = event.category
                             )
                         }
                     } catch (e: Exception) {
@@ -244,11 +246,12 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- Countdown Engine ---
-    fun setCountdownTarget(target: ZonedDateTime, title: String = "Custom Event") {
+    fun setCountdownTarget(target: ZonedDateTime, title: String = "Custom Event", category: String = "Celebration") {
         _uiState.update {
             it.copy(
                 countdownTarget = target,
                 activeEventTitle = title,
+                activeEventCategory = category,
                 hudLogText = "Tracking countdown for: $title"
             )
         }
@@ -269,6 +272,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                 it.copy(
                     countdownTarget = target,
                     activeEventTitle = title,
+                    activeEventCategory = category,
                     hudLogText = "Added new countdown: '$title'"
                 )
             }
@@ -283,13 +287,23 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
             dao.setPinnedEvent(event.id)
             try {
                 val target = ZonedDateTime.parse(event.targetIsoString)
-                setCountdownTarget(target, event.title)
+                setCountdownTarget(target, event.title, event.category)
                 _uiState.update {
                     it.copy(hudLogText = "'${event.title}' pinned to your Home Screen widget!")
                 }
             } catch (e: Exception) {}
             com.example.widget.ChronoWidgetProvider.updateAllWidgets(getApplication())
         }
+    }
+
+    fun selectActiveEvent(event: ChronoEvent) {
+        try {
+            val target = ZonedDateTime.parse(event.targetIsoString)
+            setCountdownTarget(target, event.title, event.category)
+            _uiState.update {
+                it.copy(hudLogText = "Focused on '${event.title}' (${event.category})")
+            }
+        } catch (e: Exception) {}
     }
 
     fun deleteEvent(event: ChronoEvent) {
@@ -304,6 +318,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                         it.copy(
                             countdownTarget = nextTarget,
                             activeEventTitle = nextEvent.title,
+                            activeEventCategory = nextEvent.category,
                             hudLogText = "Removed '${event.title}'. Switched to '${nextEvent.title}'."
                         )
                     }
@@ -312,6 +327,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update {
                     it.copy(
                         activeEventTitle = "No active countdowns",
+                        activeEventCategory = "Celebration",
                         hudLogText = "Removed '${event.title}'. No countdowns remaining."
                     )
                 }

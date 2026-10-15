@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">क्षण (Kshan)</string>
     <string name="app_devanagari">क्षण</string>
-    <string name="app_pronunciation">Kshan • /k-sh-uh-n/</string>
+    <string name="app_pronunciation">Kshan</string>
     <string name="app_meaning">A Moment in Time</string>
     <string name="app_subtitle">Precision Date Companion</string>
     <string name="tab_difference">Difference</string>

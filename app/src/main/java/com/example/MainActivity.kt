@@ -5,10 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,7 +22,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,7 +35,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,13 +50,15 @@ import com.example.ui.screens.CountdownScreen
 import com.example.ui.screens.DateMathScreen
 import com.example.ui.screens.DifferenceScreen
 import com.example.ui.screens.WidgetsDashboardScreen
-import com.example.ui.theme.DevanagariDisplayFont
+import com.example.ui.theme.KalamFont
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.SpaceBlack
+import com.example.ui.theme.SpaceCard
+import com.example.ui.theme.SpaceDark
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
-import com.example.ui.theme.TextSecondary
 import com.example.viewmodel.ChronoTab
 import com.example.viewmodel.ChronoViewModel
 
@@ -100,12 +108,12 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                     .padding(top = innerPadding.calculateTopPadding())
                     .statusBarsPadding()
             ) {
-                // Top Header Branding: क्षण (Kshan)
+                // Top Header Branding: Kalam Devanagari Squircle & Kshan Title
                 KshanHeader()
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // Active Mode Screen with Fluid Transitions
+                // Direction-Aware Fluid Page Transitions
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -114,10 +122,17 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                     AnimatedContent(
                         targetState = uiState.currentTab,
                         transitionSpec = {
-                            fadeIn(tween(240, easing = FastOutSlowInEasing)) togetherWith
-                                    fadeOut(tween(180, easing = FastOutSlowInEasing))
+                            val forward = targetState.ordinal > initialState.ordinal
+                            val springSpec = spring<Float>(dampingRatio = 0.82f, stiffness = 420f)
+                            if (forward) {
+                                (slideInHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f)) { it } + fadeIn(tween(260))) togetherWith
+                                        (slideOutHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f)) { -it } + fadeOut(tween(200)))
+                            } else {
+                                (slideInHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f)) { -it } + fadeIn(tween(260))) togetherWith
+                                        (slideOutHorizontally(animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f)) { it } + fadeOut(tween(200)))
+                            }
                         },
-                        label = "mode_switch_anim"
+                        label = "direction_aware_page_transition"
                     ) { tab ->
                         when (tab) {
                             ChronoTab.DIFFERENCE -> DifferenceScreen(
@@ -146,6 +161,8 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                                     viewModel.addNewEvent(title, date, cat)
                                 },
                                 onTriggerCelebration = { viewModel.triggerManualCelebration() },
+                                onClearCelebration = { viewModel.clearCelebration() },
+                                onSelectEvent = { viewModel.selectActiveEvent(it) },
                                 onHudInteraction = { viewModel.setHudLog(it) }
                             )
 
@@ -167,45 +184,80 @@ fun KshanHeader() {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 22.dp, vertical = 2.dp)
+            .padding(horizontal = 22.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.Bottom) {
-                // Prominent Devanagari Script Logo in Rozha One Font
-                Text(
-                    text = "क्षण",
-                    fontFamily = DevanagariDisplayFont,
-                    fontSize = 36.sp,
-                    lineHeight = 40.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = TextPrimary
-                )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // (1) Frosted-Glass Squircle with ambient cyan/purple glow
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    SpaceCard.copy(alpha = 0.95f),
+                                    SpaceDark.copy(alpha = 0.98f)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 1.2.dp,
+                            brush = Brush.verticalGradient(
+                                colors = listOf(
+                                    NeonCyan.copy(alpha = 0.7f),
+                                    NeonPurple.copy(alpha = 0.4f)
+                                )
+                            ),
+                            shape = RoundedCornerShape(14.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // (2) Vertical metallic-to-cyan gradient text with upward optical offset
+                    val textGradient = Brush.verticalGradient(
+                        colors = listOf(
+                            Color.White,
+                            Color(0xFFD8FAFF),
+                            NeonCyan
+                        )
+                    )
 
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // English Pronunciation Guide
-                Column(modifier = Modifier.padding(bottom = 4.dp)) {
                     Text(
-                        text = "KSHAN • /k-sh-uh-n/",
-                        fontFamily = FontFamily.Default,
-                        fontSize = 12.sp,
+                        text = "क्षण",
+                        fontFamily = KalamFont,
+                        fontSize = 26.sp,
                         fontWeight = FontWeight.Bold,
-                        color = NeonCyan
+                        style = TextStyle(brush = textGradient),
+                        modifier = Modifier.offset(y = (-2).dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Brand Title & Meaning
+                Column {
+                    Text(
+                        text = "Kshan",
+                        fontFamily = FontFamily.Default,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.3).sp,
+                        color = TextPrimary
                     )
                     Text(
-                        text = "A Moment in Time",
+                        text = "Precision Date Companion",
                         fontFamily = FontFamily.Default,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = TextMuted
                     )
                 }
             }
 
-            // Pro Precision Badge
+            // Pro Pill Badge
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))

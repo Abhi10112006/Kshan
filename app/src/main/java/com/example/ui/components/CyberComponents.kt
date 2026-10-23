@@ -1,19 +1,37 @@
 package com.example.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,6 +41,7 @@ import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDefaults
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -33,22 +52,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.NeonCyan
+import com.example.ui.theme.NeonEmerald
 import com.example.ui.theme.NeonPink
 import com.example.ui.theme.NeonPurple
 import com.example.ui.theme.SpaceBlack
 import com.example.ui.theme.SpaceCard
 import com.example.ui.theme.SpaceCardBorder
 import com.example.ui.theme.SpaceDark
+import com.example.ui.theme.ComicNeueFontFamily
+import com.example.ui.theme.CourierPrimeFontFamily
+import com.example.ui.theme.TabularMonoFontFamily
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
@@ -56,10 +82,15 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
+/**
+ * Top-Lit Specular Obsidian Glass Card.
+ * Replaces uniform solid borders with directional specular gradient highlights
+ * and a subtle top-center radial illumination.
+ */
 @Composable
 fun FrostedGlassCard(
     modifier: Modifier = Modifier,
-    borderColor: Color = SpaceCardBorder,
+    borderColor: Color = NeonCyan,
     glowAlpha: Float = 0.35f,
     cornerRadius: Dp = 24.dp,
     content: @Composable BoxScope.() -> Unit
@@ -72,26 +103,36 @@ fun FrostedGlassCard(
         label = "card_press_scale"
     )
 
+    val obsidianBase = Color(0xFF0B101E).copy(alpha = 0.85f)
+    val specularBorderBrush = Brush.linearGradient(
+        colors = listOf(
+            Color.White.copy(alpha = 0.22f),
+            borderColor.copy(alpha = (glowAlpha * 0.7f).coerceIn(0.12f, 0.45f)),
+            Color.Transparent
+        ),
+        start = Offset(0f, 0f),
+        end = Offset(400f, 400f)
+    )
+
     Box(
         modifier = modifier
             .scale(scale)
             .clip(RoundedCornerShape(cornerRadius))
+            .background(obsidianBase)
+            // Top-center ambient radial glow
             .background(
-                Brush.verticalGradient(
+                Brush.radialGradient(
                     colors = listOf(
-                        SpaceCard.copy(alpha = 0.88f),
-                        SpaceDark.copy(alpha = 0.92f)
-                    )
+                        borderColor.copy(alpha = 0.10f),
+                        Color.Transparent
+                    ),
+                    center = Offset(250f, 0f),
+                    radius = 350f
                 )
             )
             .border(
-                width = 1.dp,
-                brush = Brush.verticalGradient(
-                    colors = listOf(
-                        borderColor.copy(alpha = glowAlpha),
-                        borderColor.copy(alpha = glowAlpha * 0.3f)
-                    )
-                ),
+                width = 1.2.dp,
+                brush = specularBorderBrush,
                 shape = RoundedCornerShape(cornerRadius)
             )
             .padding(20.dp),
@@ -115,6 +156,336 @@ fun CyberCard(
     content = content
 )
 
+/**
+ * Connected Date Cards with floating center badge (⇄ or →).
+ * Connects the Start Date and End Date cards visually without uniform box clutter.
+ */
+@Composable
+fun ConnectedDateCards(
+    startContent: @Composable () -> Unit,
+    endContent: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    connectorIcon: ImageVector? = null,
+    connectorLabel: String = "⇄",
+    accentColor: Color = NeonCyan
+) {
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(IntrinsicSize.Max),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                startContent()
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                endContent()
+            }
+        }
+
+        // Floating Overlapping Center Connector Badge
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF0F172A))
+                .border(
+                    width = 1.2.dp,
+                    brush = Brush.linearGradient(
+                        listOf(Color.White.copy(0.35f), accentColor, Color.Transparent)
+                    ),
+                    shape = CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (connectorIcon != null) {
+                Icon(
+                    imageVector = connectorIcon,
+                    contentDescription = "Connector",
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            } else {
+                Text(
+                    text = connectorLabel,
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = accentColor
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Ambient Hero Result Readout.
+ * Eliminates heavy rectangular borders and replaces them with an ambient radial aura
+ * and oversized 72.sp Monospace numbers with a sleek pill capsule metadata badge.
+ */
+@Composable
+fun AmbientHeroResult(
+    mainValue: String,
+    label: String,
+    breakdownText: String,
+    modifier: Modifier = Modifier,
+    accentColor: Color = NeonCyan,
+    testTag: String = "hero_main_number"
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Ambient Radial Aura
+        Box(
+            modifier = Modifier
+                .size(240.dp)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            accentColor.copy(alpha = 0.16f),
+                            accentColor.copy(alpha = 0.05f),
+                            Color.Transparent
+                        )
+                    )
+                )
+        )
+
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            // Label e.g. "WORKING DAYS" / "TOTAL DAYS"
+            Text(
+                text = label.uppercase(),
+                fontFamily = ComicNeueFontFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 2.sp,
+                color = TextMuted
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Oversized Monospace Readout
+            Text(
+                text = mainValue,
+                fontFamily = TabularMonoFontFamily,
+                fontSize = 72.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                modifier = Modifier.testTag(testTag)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Sleek Capsule Metadata Pill
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(Color(0xFF0F172A).copy(alpha = 0.9f))
+                    .border(
+                        1.dp,
+                        Brush.horizontalGradient(
+                            listOf(accentColor.copy(0.5f), Color.White.copy(0.2f), accentColor.copy(0.4f))
+                        ),
+                        RoundedCornerShape(50)
+                    )
+                    .padding(horizontal = 16.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = breakdownText,
+                    fontFamily = ComicNeueFontFamily,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = accentColor,
+                    textAlign = TextAlign.Center
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Unified Hero Orbital Timepiece Card.
+ * Replaces the 4 isolated dark boxes with a single panoramic chronometer featuring
+ * an animated progress arc along the top edge, giant monospace digits, and pulsing colons.
+ */
+@Composable
+fun HeroOrbitalTimepiece(
+    days: Long,
+    hours: Long,
+    minutes: Long,
+    seconds: Long,
+    categoryName: String,
+    eventTitle: String,
+    statusText: String,
+    modifier: Modifier = Modifier,
+    accentColor: Color = NeonCyan
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "timepiece_colon")
+    val colonAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "colon_blink"
+    )
+
+    FrostedGlassCard(
+        modifier = modifier.fillMaxWidth(),
+        borderColor = accentColor,
+        glowAlpha = 0.5f,
+        cornerRadius = 28.dp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Animated glowing progress arc strip along top
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(
+                        Brush.horizontalGradient(
+                            listOf(
+                                Color.Transparent,
+                                accentColor,
+                                Color.White.copy(0.8f),
+                                accentColor,
+                                Color.Transparent
+                            )
+                        )
+                    )
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Category & Status
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accentColor.copy(alpha = 0.15f))
+                        .border(1.dp, accentColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = categoryName.uppercase(),
+                        fontFamily = ComicNeueFontFamily,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = accentColor
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Text(
+                    text = statusText,
+                    fontFamily = ComicNeueFontFamily,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = TextSecondary
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Event Title
+            Text(
+                text = eventTitle,
+                fontFamily = ComicNeueFontFamily,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Unified Monospace Digits Readout with Pulsing Colons
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                DigitBlock(value = String.format("%02d", days), label = "DAYS")
+                PulsingColon(alpha = colonAlpha, accentColor = accentColor)
+                DigitBlock(value = String.format("%02d", hours), label = "HOURS")
+                PulsingColon(alpha = colonAlpha, accentColor = accentColor)
+                DigitBlock(value = String.format("%02d", minutes), label = "MINS")
+                PulsingColon(alpha = colonAlpha, accentColor = accentColor)
+                DigitBlock(value = String.format("%02d", seconds), label = "SECS", isHighlight = true, highlightColor = accentColor)
+            }
+        }
+    }
+}
+
+@Composable
+private fun DigitBlock(
+    value: String,
+    label: String,
+    isHighlight: Boolean = false,
+    highlightColor: Color = NeonCyan
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            fontFamily = TabularMonoFontFamily,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isHighlight) highlightColor else TextPrimary
+        )
+        Text(
+            text = label,
+            fontFamily = ComicNeueFontFamily,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (isHighlight) highlightColor else TextMuted
+        )
+    }
+}
+
+@Composable
+private fun PulsingColon(alpha: Float, accentColor: Color) {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 6.dp)
+            .offset(y = (-6).dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = ":",
+            fontFamily = TabularMonoFontFamily,
+            fontSize = 28.sp,
+            fontWeight = FontWeight.Bold,
+            color = accentColor.copy(alpha = alpha)
+        )
+    }
+}
+
 @Composable
 fun ModernPillButton(
     text: String,
@@ -125,6 +496,7 @@ fun ModernPillButton(
     icon: ImageVector? = null,
     testTag: String = "modern_pill_button"
 ) {
+    val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -142,7 +514,7 @@ fun ModernPillButton(
                 if (isPrimary) {
                     Brush.horizontalGradient(
                         listOf(
-                            accentColor.copy(alpha = 0.22f),
+                            accentColor.copy(alpha = 0.25f),
                             accentColor.copy(alpha = 0.12f)
                         )
                     )
@@ -168,7 +540,12 @@ fun ModernPillButton(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = {
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    } catch (_: Exception) {}
+                    onClick()
+                }
             )
             .padding(horizontal = 24.dp)
             .testTag(testTag),
@@ -176,7 +553,7 @@ fun ModernPillButton(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) {
-                androidx.compose.material3.Icon(
+                Icon(
                     imageVector = icon,
                     contentDescription = null,
                     tint = accentColor,
@@ -186,7 +563,7 @@ fun ModernPillButton(
             }
             Text(
                 text = text,
-                fontFamily = FontFamily.Default,
+                fontFamily = ComicNeueFontFamily,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 0.3.sp,
@@ -222,6 +599,7 @@ fun ModernToggle(
     activeColor: Color = NeonCyan,
     testTag: String = "modern_toggle"
 ) {
+    val view = LocalView.current
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 24.dp else 2.dp,
         animationSpec = spring(dampingRatio = 0.75f, stiffness = 600f),
@@ -247,6 +625,9 @@ fun ModernToggle(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
             ) {
+                try {
+                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                } catch (_: Exception) {}
                 onCheckedChange(!checked)
             }
             .testTag(testTag),
@@ -286,6 +667,7 @@ fun ModernCapsuleChip(
     modifier: Modifier = Modifier,
     accentColor: Color = NeonCyan
 ) {
+    val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -307,16 +689,79 @@ fun ModernCapsuleChip(
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
-                onClick = onClick
+                onClick = {
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    } catch (_: Exception) {}
+                    onClick()
+                }
             )
             .padding(horizontal = 16.dp, vertical = 9.dp)
     ) {
         Text(
             text = label,
-            fontFamily = FontFamily.Default,
+            fontFamily = ComicNeueFontFamily,
             fontSize = 13.sp,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
             color = if (isSelected) accentColor else TextSecondary
+        )
+    }
+}
+
+/**
+ * Subtle Frosted Action Icon Button for saved countdown cards.
+ * Replaces harsh solid red/grey icons with soft frosted glass buttons.
+ */
+@Composable
+fun FrostedActionButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    isActive: Boolean = false,
+    activeColor: Color = NeonCyan,
+    testTag: String = ""
+) {
+    val view = LocalView.current
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.88f else 1f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 600f),
+        label = "icon_btn_scale"
+    )
+
+    Box(
+        modifier = modifier
+            .scale(scale)
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(
+                if (isActive) activeColor.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.08f)
+            )
+            .border(
+                width = 1.dp,
+                color = if (isActive) activeColor.copy(alpha = 0.5f) else Color.White.copy(alpha = 0.15f),
+                shape = CircleShape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = {
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    } catch (_: Exception) {}
+                    onClick()
+                }
+            )
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = if (isActive) activeColor else Color.White.copy(alpha = 0.55f),
+            modifier = Modifier.size(16.dp)
         )
     }
 }
@@ -328,6 +773,7 @@ fun CyberDatePickerDialog(
     onDateSelected: (LocalDate) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val view = LocalView.current
     val initialEpochMillis = initialDate.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = initialEpochMillis
@@ -338,6 +784,9 @@ fun CyberDatePickerDialog(
         confirmButton = {
             TextButton(
                 onClick = {
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                    } catch (_: Exception) {}
                     datePickerState.selectedDateMillis?.let { millis ->
                         val selectedLocalDate = Instant.ofEpochMilli(millis)
                             .atZone(ZoneOffset.UTC)
@@ -350,18 +799,25 @@ fun CyberDatePickerDialog(
                 Text(
                     text = "Select Date",
                     color = NeonCyan,
-                    fontFamily = FontFamily.Default,
+                    fontFamily = ComicNeueFontFamily,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
                 )
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(
+                onClick = {
+                    try {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                    } catch (_: Exception) {}
+                    onDismiss()
+                }
+            ) {
                 Text(
                     text = "Cancel",
                     color = TextMuted,
-                    fontFamily = FontFamily.Default,
+                    fontFamily = ComicNeueFontFamily,
                     fontSize = 14.sp
                 )
             }

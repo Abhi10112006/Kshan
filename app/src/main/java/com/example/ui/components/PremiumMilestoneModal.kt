@@ -395,7 +395,7 @@ fun PremiumMilestoneModal(
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = "•  ${theme.badgeLabel}",
-                            fontFamily = FontFamily.Default,
+                            fontFamily = com.example.ui.theme.ComicNeueFontFamily,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.ExtraBold,
                             letterSpacing = 1.4.sp,
@@ -408,7 +408,7 @@ fun PremiumMilestoneModal(
                     // Event Title
                     Text(
                         text = if (eventTitle.isNotBlank()) "“$eventTitle”" else "“Celebration Moment”",
-                        fontFamily = FontFamily.Default,
+                        fontFamily = com.example.ui.theme.ComicNeueFontFamily,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Black,
                         color = TextPrimary,
@@ -440,7 +440,7 @@ fun PremiumMilestoneModal(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = theme.statusPillText,
-                                fontFamily = FontFamily.Default,
+                                fontFamily = com.example.ui.theme.ComicNeueFontFamily,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 letterSpacing = 0.8.sp,
@@ -451,7 +451,7 @@ fun PremiumMilestoneModal(
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Primary Action: Burst Fireworks Button (Category Wording + Real-time In-Modal Bursts)
+                    // Primary Action: Burst Fireworks Button (Deep Cyan-to-Indigo Glass Gradient + Crisp White Text)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -459,8 +459,15 @@ fun PremiumMilestoneModal(
                             .clip(RoundedCornerShape(26.dp))
                             .background(
                                 Brush.horizontalGradient(
-                                    colors = listOf(theme.primaryColor, theme.secondaryColor, NeonCyan)
+                                    colors = listOf(Color(0xFF00F2FE), Color(0xFF6366F1))
                                 )
+                            )
+                            .border(
+                                width = 1.dp,
+                                brush = Brush.horizontalGradient(
+                                    listOf(Color.White.copy(alpha = 0.5f), Color.Transparent)
+                                ),
+                                shape = RoundedCornerShape(26.dp)
                             )
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.CONFIRM)
@@ -473,16 +480,16 @@ fun PremiumMilestoneModal(
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = DeepIndigo,
+                                tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = theme.burstButtonText,
-                                fontFamily = FontFamily.Default,
+                                fontFamily = com.example.ui.theme.ComicNeueFontFamily,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = DeepIndigo
+                                color = Color.White
                             )
                         }
                     }

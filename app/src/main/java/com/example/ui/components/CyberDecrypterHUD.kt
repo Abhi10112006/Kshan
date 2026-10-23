@@ -109,7 +109,7 @@ fun CyberDecrypterHUD(
                     ) { hint ->
                         Text(
                             text = hint,
-                            fontFamily = FontFamily.Default,
+                            fontFamily = com.example.ui.theme.ComicNeueFontFamily,
                             fontSize = 12.sp,
                             lineHeight = 16.sp,
                             color = TextSecondary,
@@ -121,6 +121,7 @@ fun CyberDecrypterHUD(
                 Spacer(modifier = Modifier.width(12.dp))
 
                 // Right: Timezone LOC/UTC Pill
+                val view = androidx.compose.ui.platform.LocalView.current
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
@@ -130,6 +131,7 @@ fun CyberDecrypterHUD(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
+                            view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
                             onTimezoneToggled(!isUtc)
                         }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
@@ -138,20 +140,20 @@ fun CyberDecrypterHUD(
                 ) {
                     Text(
                         text = "LOC",
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = com.example.ui.theme.CourierPrimeFontFamily,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (!isUtc) NeonCyan else TextMuted
                     )
                     Text(
                         text = " / ",
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = com.example.ui.theme.CourierPrimeFontFamily,
                         fontSize = 10.sp,
                         color = TextMuted
                     )
                     Text(
                         text = "UTC",
-                        fontFamily = FontFamily.Monospace,
+                        fontFamily = com.example.ui.theme.CourierPrimeFontFamily,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isUtc) NeonCyan else TextMuted

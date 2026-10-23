@@ -199,7 +199,7 @@ fun FloatingGlassIslandDock(
                             ) {
                                 Text(
                                     text = label,
-                                    fontFamily = FontFamily.Default,
+                                    fontFamily = com.example.ui.theme.ComicNeueFontFamily,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = NeonCyan,

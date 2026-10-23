@@ -50,6 +50,7 @@ import com.example.ui.screens.CountdownScreen
 import com.example.ui.screens.DateMathScreen
 import com.example.ui.screens.DifferenceScreen
 import com.example.ui.screens.WidgetsDashboardScreen
+import com.example.ui.theme.ComicNeueFontFamily
 import com.example.ui.theme.KalamFont
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.NeonCyan
@@ -96,10 +97,24 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
         Scaffold(
             containerColor = Color.Transparent,
             bottomBar = {
-                FloatingGlassIslandDock(
-                    selectedTab = uiState.currentTab,
-                    onTabSelected = { viewModel.selectTab(it) }
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(
+                                    Color.Transparent,
+                                    Color(0xFF050811).copy(alpha = 0.85f),
+                                    Color(0xFF050811)
+                                )
+                            )
+                        )
+                ) {
+                    FloatingGlassIslandDock(
+                        selectedTab = uiState.currentTab,
+                        onTabSelected = { viewModel.selectTab(it) }
+                    )
+                }
             }
         ) { innerPadding ->
             Column(
@@ -238,11 +253,21 @@ fun KshanHeader() {
 
                 Spacer(modifier = Modifier.width(12.dp))
 
+                // Translucent 1.dp x 26.dp vertical divider (White at 15% opacity)
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(26.dp)
+                        .background(Color.White.copy(alpha = 0.15f))
+                )
+
+                Spacer(modifier = Modifier.width(12.dp))
+
                 // Brand Title & Meaning
                 Column {
                     Text(
                         text = "Kshan",
-                        fontFamily = FontFamily.Default,
+                        fontFamily = ComicNeueFontFamily,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = (-0.3).sp,
@@ -250,7 +275,7 @@ fun KshanHeader() {
                     )
                     Text(
                         text = "Precision Date Companion",
-                        fontFamily = FontFamily.Default,
+                        fontFamily = ComicNeueFontFamily,
                         fontSize = 12.sp,
                         color = TextMuted
                     )
@@ -267,7 +292,7 @@ fun KshanHeader() {
             ) {
                 Text(
                     text = "Pro",
-                    fontFamily = FontFamily.Default,
+                    fontFamily = ComicNeueFontFamily,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     color = NeonCyan

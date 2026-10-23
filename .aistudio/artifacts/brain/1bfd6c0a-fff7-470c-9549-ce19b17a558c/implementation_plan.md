@@ -1,116 +1,119 @@
-# क्षण (Kshan) • Ballistic Rocket Pyrotechnics, Direct Shift Input & Animated Countdown Badges
+# क्षण (Kshan) — Production Architecture, Realistic Fireworks Simulator & Release Upgrade Plan (Revised)
 
-A major technical and aesthetic elevation delivering an authentic pyrotechnic simulation engine with additive light blending, procedural audio/haptics, direct numeric input for date shifts, premium animated share button, and dynamic Typewriter countdown badges.
+This revised plan incorporates all technical corrections for **क्षण (Kshan)** (`com.abhi.kshan`): target-relative `Chronometer` remainder math with `"Reached"` state swapping, `setAndAllowWhileIdle()` alarm scheduling with `BOOT_COMPLETED` recovery, Room schema export, removal of unused `.ttf` fonts and Firebase/network dependencies, full `com/abhi/kshan` package directory migration, mid-range GPU particle budgets with Power Saver caps, and safe GitHub Release workflows.
 
----
-
-### User Review & Latest Revisions Incorporated
+## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> The following revisions and user feedback are fully incorporated:
-> 1. **Celebration Fireworks Rendering & Full-Screen Smoothness Fix**:
->    - **Root Cause & Fix**: Compose `Canvas` draw lambdas must explicitly read animation frame state (`tickTrigger`) to register invalidation on every frame. We bind frame state directly inside `Canvas` to guarantee silky-smooth 60/120fps invalidation without missing frames.
->    - **Visibility from Card**: When tapping "Launch Rockets" on the expanded card, rockets spawn from the lower flanks and arc gracefully above and around the card into the open upper sky with high-visibility luminous trails, bursting into clear sight.
->    - **Realistic Motion**: Delta-time integration (`dt`) with calibrated gravity (`0.22f`), air drag (`0.975f`), and multi-point glowing golden comet tails.
-> 2. **Premium Animated Share Button**:
->    - Styled with a multi-layered obsidian glass fill, dynamic specular border shimmer, a rotating/pulsing spark icon on click, spring press scale (`0.95f` $\to$ `1.0f`), and rich haptic confirmation.
-> 3. **App-Wide Button Haptics**:
->    - Comprehensive haptic feedback across all interactive controls: preset chips in Difference/Shift/Countdown screens, `+` and `−` steppers, Earlier/Later buttons, Skip Weekends toggles, "+ Add Countdown", Pin/Delete buttons, Time chips, and Date Picker dialog actions.
-> 4. **Direct Number Input Dialog & Equal Card Heights**:
->    - Tapping the numeric day count (e.g., `7`) opens a clean, dark obsidian Typewriter number-input dialog (with numbers up to 9999).
->    - Base Date and Days to Shift cards matched in height using `Modifier.height(IntrinsicSize.Max)`.
-> 5. **Saved Countdown Badges & Selection Animation**:
->    - Each saved countdown card displays a bold Typewriter remaining badge (e.g. `45d left`) in `CourierPrimeFontFamily`.
->    - Selection animation: Pulsing glow with spring scale (`spring(dampingRatio = 0.7f, stiffness = 400f)`) and dynamic category tint when selecting active countdowns.
+> All pre-build technical fixes and scope guards have been integrated into this revision:
+
+- **Fix 1 — `Chronometer` Remainder Math, Target-Relative Day Boundaries & "Reached" State**:
+  - A native `Chronometer` displays total elapsed/remaining hours (`123:45:10`) and ticks negative past zero if given the raw target time.
+  - **Remainder Base Calculation**: For **4×2 Panoramic** and **4×1 Pill** widgets, we compute `days = remainingMillis / 86_400_000L` and `remainderMillis = remainingMillis - (days * 86_400_000L)` (`target - days * 24h`). We set the `Chronometer` base to `SystemClock.elapsedRealtime() + remainderMillis` with `setCountDown(true)` so it strictly ticks the `HH:MM:SS` remainder (`23:59:59` down to `00:00:00`).
+  - **Target-Relative Boundary Refresh**: Instead of refreshing at midnight, we schedule the next widget update at the exact **day boundary relative to the target timestamp** (`nextBoundaryEpochMillis = targetEpochMillis - (days * 86_400_000L)` when `days > 0`, and at `targetEpochMillis` when `days == 0`).
+  - **"Milestone Reached" View Swap**: When `nowEpochMillis >= targetEpochMillis`, the widget hides the `Chronometer` view (`View.GONE`) and swaps in a dedicated **"MILESTONE REACHED"** badge so the timer never ticks negative.
+- **Fix 2 — Zero-Permission Alarm Scheduling (`setAndAllowWhileIdle`) & System Receivers**:
+  - **Alarm Scheduling**: Because Android 14+ denies `SCHEDULE_EXACT_ALARM` by default on new installs, we use `alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextBoundaryEpochMillis, pendingIntent)` (or check `canScheduleExactAlarms()` on API 31+ and fall back to `setAndAllowWhileIdle()`), requiring zero special user permissions.
+  - **Broadcast Receivers**: Register `android.intent.action.TIME_SET` (the real system time-change broadcast), `android.intent.action.TIMEZONE_CHANGED`, and `android.intent.action.BOOT_COMPLETED` (with `<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />`) so scheduled boundary alarms are automatically restored after a reboot. `ACTION_DATE_CHANGED` is omitted.
+- **Fix 3 — Package Migration (`com.abhi.kshan`), Room Schema Export & Font Cleanup**:
+  - **Full Directory Migration**: Move source and test folders from `com/example` to `com/abhi/kshan`, update `namespace = "com.abhi.kshan"` and `applicationId = "com.abhi.kshan"`, and update all manifest and widget provider class paths.
+  - **Room Schema Export**: Enable `exportSchema = true` in `@Database` and configure `ksp { arg("room.schemaLocation", "$projectDir/schemas") }` in the build script alongside the package migration.
+  - **Delete Unused Font `.ttf` Files**: Remove unused font resources (`rozha_one.ttf`, `poppins.ttf`, `jetbrains_mono.ttf`, `plus_jakarta_sans.ttf`) from `res/font/`, keeping only `comic_neue.ttf`, `courier_prime.ttf`, and `kalam.ttf`.
+- **Fix 4 — Mid-Range GPU Fireworks Budget, Power Saver Cap & Haptic Permission**:
+  - **Particle Budget & Power Saver Throttling**: Cap the pool to **1,200 sparks + 45 smoke puffs** in standard mode, and dynamically throttle to **350 sparks + 0 smoke puffs** (with simplified single-pass rendering) when **Power Saver** is enabled so mid-range phones maintain a locked 60fps.
+  - **Manifest Permissions**: Confirm `<uses-permission android:name="android.permission.VIBRATE" />` and `<uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />` are declared in `AndroidManifest.xml`.
+- **Fix 5 — Safe Release APK Workflow**:
+  - Never commit keystores or credentials to version control. Document clean local APK signing and GitHub Releases publishing steps in `README.md` alongside GitHub repository topics.
 
 ---
 
-## 1. Architecture & Component Blueprint
+## 1. Overview & Core Concept
+
+- **What It Does**: **क्षण (Kshan)** is a precision chronometer, date difference calculator, working-day shifter, live event countdown studio, and physics-driven pyrotechnic celebration app built with Jetpack Compose.
+- **Target Audience / Persona**: Users and open-source developers looking for a fast, zero-bloat Android time utility with adaptive home screen widgets, custom bundled typography, and smooth 60fps particle physics.
+- **Key Value**: Shrinks APK size by removing unused Firebase AI/App Check and unused `.ttf` fonts, prevents background battery drain, keeps home screen widgets accurate across day boundaries and reboots, and organizes the codebase under `com.abhi.kshan`.
+
+---
+
+## 2. User Experience & Visual Design
+
+- **Key User Flows**:
+  1. **Home Screen Widget Flow**:
+     - **2×2 Orbit Widget**: Renders **Days Only** inside the orbital progress ring, updating automatically at each target-relative 24-hour boundary.
+     - **4×2 Panoramic & 4×1 Pill Widgets**: Render **Days** on the glass card plus a live ticking **HH:MM:SS** `Chronometer` calibrated to `target - (days * 24h)`. Once the target instant arrives, the `Chronometer` hides and swaps to a glowing **"MILESTONE REACHED"** state.
+  2. **Widget Studio In-App Preview**: Switching between `2×2 Orbit`, `4×2 Panoramic`, and `4×1 Minimal Pill` previews the exact layout with live animated ticking seconds on the 4×2 and 4×1 formats.
+  3. **Realistic Fireworks Simulator Flow**: Users can tap/drag across the night sky or toggle **Auto Finale Show Mode** to experience 6 shell types (**Chrysanthemum**, **Willow**, **Saturn Double-Ring**, **Strobe Crackle**, **Peony Crossette 4-Way Split**, and **Horsetail Cascade**), atmospheric sky flash lighting, drifting smoke clouds, and speed-of-sound delayed explosion audio + haptics—automatically throttled when Power Saver is active.
+- **Visual Identity & Theme**:
+  - *Aesthetic Direction*: Deep OLED Space Glass (`#000000` to `#0B101E`) with electric neon accents (`#00F2FE` Cyan, `#A855F7` Purple, `#FFD700` Metallic Gold, `#10B981` Emerald).
+  - *Typography & Hierarchy*: Strictly bundled `.ttf` resources—**Comic Neue** for UI headers and labels, **Courier Prime** for Typewriter numbers, dates, and live timers, and **Kalam** for the `"क्षण"` brand glyph.
+
+---
+
+## 3. Key Product Decisions & Trade-Offs
+
+- **Decision 1 — Target-Relative `setAndAllowWhileIdle` Alarms Over `updatePeriodMillis`**:
+  - *Chosen Approach*: Schedule an inexact wake alarm (`setAndAllowWhileIdle`, or exact if `canScheduleExactAlarms()` is true) for `targetEpochMillis - (days * 86_400_000L)`, and re-register on `TIME_SET`, `TIMEZONE_CHANGED`, and `BOOT_COMPLETED`.
+  - *Why*: Countdown days decrement every 24 hours relative to the event's target time of day, not at midnight. Using `setAndAllowWhileIdle` works out-of-the-box on Android 14+ without requiring the user to grant `SCHEDULE_EXACT_ALARM` in system settings.
+- **Decision 2 — Removing Unused Dependencies & Unused Font Assets**:
+  - *Chosen Approach*: Strip `firebase-bom`, `firebase-ai`, `firebase-appcheck-recaptcha`, `firebase-appcheck-debug`, `retrofit`, `okhttp`, `logging-interceptor`, and `moshi` from Gradle, and delete `rozha_one.ttf`, `poppins.ttf`, `jetbrains_mono.ttf`, and `plus_jakarta_sans.ttf`.
+  - *Why*: Eliminates dead code and unused binary assets to minimize APK size.
+- **Decision 3 — Lifecycle-Bound Telemetry Ticker & Structured Logging**:
+  - *Chosen Approach*: Drive the 1-second UI telemetry update via a lifecycle-aware flow (`repeatOnLifecycle(Lifecycle.State.STARTED)` / `collectAsStateWithLifecycle`) and replace all empty `catch (e: Exception) {}` blocks with `Log.w("KshanChrono", ..., e)`.
+  - *Why*: Stops background CPU wakeups when the app is minimized and ensures date-parsing errors are traceable in Logcat.
+- **Decision 4 — Modularizing Large UI & Physics Files**:
+  - *Chosen Approach*: Split `WidgetsDashboardScreen` and `CelebrationFireworksOverlay` into focused sub-modules (physics engine, sound/haptics engine, overlay UI, widget mockup previews, and telemetry cards).
+  - *Why*: Keeps files under ~450 lines for clean navigation and fast incremental builds.
+
+---
+
+## 4. Technical Architecture & Data Strategy *(Technical Reference)*
+
+- **Architecture & Component Diagram**:
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                 CelebrationFireworksOverlay (Full OLED Canvas)              │
-│                                                                             │
-│  [ [FPS: 60.0] Telemetry ]                       [ 🔊 Audio/Haptics Toggle ]│
-│                                                                             │
-│  ┌──────────────────────── Twinkling Starfield ──────────────────────────┐  │
-│  │ 120 twinkling background stars (sinusoidal alpha/scale over #000000)  │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-│  ┌────────────────────── 2-Stage Ballistic Engine ───────────────────────┐  │
-│  │ • Zero-GC Object Pooling: 50 Rockets, 2500 Particles                  │  │
-│  │ • Explicit Canvas Frame Recomposition State (Guaranteed 60/120fps)    │  │
-│  │ • Stage 1: Ascending rockets with glowing 6-point golden comet tail   │  │
-│  │ • Stage 2 Apex Bursts:                                                │  │
-│  │    1. Chrysanthemum Sphere (140 radial embers + linger trails)        │  │
-│  │    2. Golden & Cyan Willow (high-drag, weeping gold/cyan streamers)   │  │
-│  │    3. Saturn Double-Ring (outer cyan/purple ring + inner gold ring)   │  │
-│  │    4. Strobe Crackle (white-hot flash + 3 micro-spark splits)         │  │
-│  │ • BlendMode.Plus: Additive light blending for blazing white-hot cores │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-│                                                                             │
-│  ┌────────────────── Minimizable Card / Sky View ────────────────────────┐  │
-│  │ Expanded: Top-lit frosted card with "क्षण • COUNTDOWN SKY PREVIEW"     │  │
-│  │           or "क्षण • MILESTONE ARRIVED" + Typewriter remaining pill    │  │
-│  │           + Premium Animated Share Button                             │  │
-│  │ Collapsed: Floating Top Pill [ 🎆 Tap sky to launch • Show Card • Exit]│  │
-│  │ Touch Interaction: Tap or drag anywhere on sky to launch rockets      │  │
-│  └───────────────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                        क्षण (Kshan) — com.abhi.kshan                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│  Data & Lifecycle State Layer                                              │
+│  ┌──────────────────────────────┐     ┌─────────────────────────────────┐  │
+│  │ ChronoDatabase (Room)        │────▶│ ChronoViewModel                 │  │
+│  │ • exportSchema = true        │     │ • Lifecycle-bound 1Hz ticker    │  │
+│  │ • KSP schemaLocation         │     │ • Structured Log.w error logs   │  │
+│  └──────────────────────────────┘     └─────────────────────────────────┘  │
+├────────────────────────────────────────────────────────────────────────────┤
+│  Modularized UI & Fireworks Simulator Layer                                │
+│  ┌──────────────────────────────────┐ ┌─────────────────────────────────┐  │
+│  │ Fireworks Simulator Modules      │ │ Widget Studio Modules           │  │
+│  │ • PyroPhysicsEngine (1200 sparks │ │ • WidgetsDashboardScreen        │  │
+│  │   / 350 in Power Saver, 45 smoke,│ │ • WidgetMockupPreviews (2x2     │  │
+│  │   6 shells, sky flash, finale)   │ │   Days-Only, 4x2 & 4x1 Days +   │  │
+│  │ • PyroSoundEngine (Distance-     │ │   Live Animated HH:MM:SS)       │  │
+│  │   delayed boom &VIBRATE haptics) │ │ • WidgetTelemetryCards          │  │
+│  │ • CelebrationFireworksOverlay    │ └─────────────────────────────────┘  │
+│  └──────────────────────────────────┘                                      │
+├────────────────────────────────────────────────────────────────────────────┤
+│  OS Home Screen Widget & Target-Boundary Scheduler                         │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ ChronoWidgetProvider + WidgetAlarmScheduler                          │  │
+│  │ • Receivers: TIME_SET, TIMEZONE_CHANGED, BOOT_COMPLETED              │  │
+│  │ • Alarm: setAndAllowWhileIdle at target - (days * 24h)               │  │
+│  │ • 2x2 Layout: Days-only orbital bitmap                               │  │
+│  │ • 4x2 & 4x1 Layout: Days + Chronometer(base = elapsed + remainder)   │  │
+│  │ • At target <= now: Hides Chronometer, shows "MILESTONE REACHED"     │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
----
-
-## 2. Proposed Implementation Steps
-
-### 1. Upgrade `CelebrationFireworksOverlay.kt`
-- **Canvas Recomposition & Frame Binding**:
-  - Read `tickTrigger` directly inside the Canvas draw scope so every physics update frame immediately renders.
-  - Fix rocket launch positioning so rockets arc above and around the center modal into unobstructed view.
-- **Additive Canvas Blending (`BlendMode.Plus`)**:
-  - Draw particles and comet tails with `BlendMode.Plus` so intersecting sparks glow brilliantly white-hot at explosion centers.
-- **4 Advanced Pyrotechnic Burst Shapes**:
-  1. **Chrysanthemum Sphere**: 140 radial velocity embers with air friction (0.975f), gravity (0.45f), and subtle trailing embers.
-  2. **Golden & Cyan Willow**: High-drag (0.95f), slow weeping gold (`#FFD700`) and electric cyan (`#00F2FE`) streamers with long decay.
-  3. **Saturn Double-Ring**: Two concentric circular shockwaves: an outer cyan/purple ring with 80 sparks, and an inner tilted golden ring with 45 sparks.
-  4. **Strobe Crackle**: High-velocity sparks that flash white-hot midway through life and split into 3 micro-sparks right before decay.
-- **Telemetry HUD**:
-  - Top-left frosted Typewriter badge (`Courier Prime`) calculating real-time FPS (`fps = 1000f / frameTimeMs`).
-- **Procedural Sound & Haptics Engine**:
-  - Low-latency synthesized launch whoosh and detonation pops using an in-memory `AudioTrack` with generated PCM waves.
-  - Multi-stage vibration effects on launch and detonation.
-  - Top-right frosted toggle button (`🔊` / `🔇`) to mute or enable audio and haptics instantly.
-- **Premium Animated Share Button**:
-  - Multi-layered frosted container with gradient border shimmer, animated rotating/scaling share spark icon, spring press animation, and haptic feedback.
-
-### 2. Shift Screen Direct Number Input (`DateMathScreen.kt`)
-- **Direct Number Input Dialog**:
-  - Clicking on the large day number in the "Days to Shift" card opens `TypewriterNumberInputDialog`.
-  - Clean obsidian modal with numeric keypad input, quick-step chips (`+10`, `+30`, `+100`, `365`), and instant calculation.
-- **Equal Height Geometry**:
-  - Apply `Modifier.height(IntrinsicSize.Max)` inside `ConnectedDateCards` to ensure both glass cards have identical heights.
-- **Comprehensive Haptics**:
-  - Add tactile haptic clicks to the preset chips, step +/- buttons, earlier/later buttons, and weekend switch.
-
-### 3. Saved Countdowns Badge & Selection Animation (`CountdownScreen.kt`)
-- **Bold Typewriter Remaining Badge**:
-  - Add an engineered `[ 45d left ]` badge rendered in `CourierPrimeFontFamily` with category accent colors on each saved countdown card.
-- **Pulsing Glow & Spring Scale Selection**:
-  - When an event is selected or active, animate the card with a pulsing ambient border aura (`animateFloat` with `infiniteRepeatable`), a scale spring (`animateFloatAsState(spring(dampingRatio = 0.7f, stiffness = 400f))`), and a vibrant category color wash.
-- **App-Wide Button Haptics**:
-  - Add haptic clicks to card selection, pin toggle, delete button, "+ Add Countdown", and modal actions.
-
----
-
-## 3. Verification Plan
-
-- **Compilation Verification**: Run `compile_applet` to confirm clean compilation across all Jetpack Compose UI, Canvas drawing, AudioTrack synthesis, and IntrinsicSize measurements.
-- **Unit & Robolectric Testing**: Run `gradle :app:testDebugUnitTest` to ensure all tests pass without regressions.
-- **Functional Checks**:
-  - Verify tapping "Launch Rockets" immediately launches visible rockets that arc into open sky.
-  - Verify smooth 60/120fps animation in both minimized sky mode and expanded card mode.
-  - Verify top-left Typewriter FPS badge displays live FPS.
-  - Verify top-right 🔊/🔇 toggle silences procedural audio and vibrations.
-  - Verify tapping "7" opens number input dialog, and cards match height.
-  - Verify saved countdown cards display bold Typewriter remaining day badges with spring scale selection animation.
-  - Verify premium animations and haptics on the Share button and all buttons.
+- **Data Model & State**:
+  - **Widget `Chronometer` & Alarm Math**:
+    - Given `remainingMillis = targetEpochMillis - System.currentTimeMillis()`:
+      - If `remainingMillis <= 0L`: Display `0 DAYS` and `"MILESTONE REACHED"` status pill; hide `Chronometer` (`View.GONE`). Cancel pending boundary alarms.
+      - If `remainingMillis > 0L`:
+        - `days = remainingMillis / 86_400_000L`
+        - `remainderMillis = remainingMillis % 86_400_000L` (or `86_400_000L` if exact multiple)
+        - On `4×2` and `4×1` widget sizes (detected via `AppWidgetManager.getAppWidgetOptions(widgetId)` `OPTION_APPWIDGET_MIN_WIDTH` / `MIN_HEIGHT`), configure `views.setChronometer(R.id.widget_live_chronometer, SystemClock.elapsedRealtime() + remainderMillis, "%s", true)` and `views.setChronometerCountDown(R.id.widget_live_chronometer, true)`.
+        - Schedule next boundary alarm at `triggerAtMillis = System.currentTimeMillis() + remainderMillis` via `setAndAllowWhileIdle`.
+  - **Fireworks Simulator Particle & Acoustic Model**:
+    - Normal mode: `MAX_SPARKS = 1200`, `MAX_SMOKE = 45`, `MAX_ROCKETS = 30`.
+    - Power Saver mode (`powerSaverEnabled == true`): `MAX_SPARKS = 350`, `MAX_SMOKE = 0`, single-layer spark rendering.
+    - Acoustic speed-of-sound delay: `delayMs = ((1f - burstY / canvasHeight) * 210L).toLong().coerceIn(70L, 240L)`.

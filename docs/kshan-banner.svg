@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 420" width="1200" height="420">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050811"/>
+      <stop offset="50%" stop-color="#0B1120"/>
+      <stop offset="100%" stop-color="#090D16"/>
+    </linearGradient>
+    <radialGradient id="cyanGlow" cx="25%" cy="45%" r="45%">
+      <stop offset="0%" stop-color="#00F5D4" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#00F5D4" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="purpleGlow" cx="78%" cy="55%" r="45%">
+      <stop offset="0%" stop-color="#8B5CF6" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#8B5CF6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00F5D4"/>
+      <stop offset="50%" stop-color="#38BDF8"/>
+      <stop offset="100%" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="420" rx="28" fill="url(#cyanGlow)"/>
+  <rect width="1200" height="420" rx="28" fill="url(#purpleGlow)"/>
+  <rect x="2" y="2" width="1196" height="416" rx="26" fill="none" stroke="#1E293B" stroke-width="2"/>
+
+  <!-- Left Brand Emblem & Title -->
+  <g transform="translate(72, 78)">
+    <rect x="0" y="0" width="84" height="84" rx="24" fill="#0F172A" stroke="url(#accentGrad)" stroke-width="2.5"/>
+    <text x="42" y="56" font-family="sans-serif" font-size="38" font-weight="bold" fill="#00F5D4" text-anchor="middle">क्षण</text>
+
+    <text x="108" y="42" font-family="sans-serif" font-size="36" font-weight="800" fill="#F8FAFC">क्षण (Kshan)</text>
+    <text x="108" y="72" font-family="monospace" font-size="16" font-weight="600" fill="#00F5D4" letter-spacing="2">CHRONO TELEMETRY • DATE ENGINE • PYRO SIMULATOR</text>
+
+    <text x="0" y="132" font-family="sans-serif" font-size="18" fill="#94A3B8">
+      Precision Android time studio featuring live orbital countdowns, business-day date math,
+    </text>
+    <text x="0" y="158" font-family="sans-serif" font-size="18" fill="#94A3B8">
+      target-relative OS home screen widgets, and a 60fps acoustic-delayed fireworks simulator.
+    </text>
+
+    <!-- Feature Pills -->
+    <g transform="translate(0, 192)">
+      <rect x="0" y="0" width="175" height="38" rx="19" fill="#0F172A" stroke="#00F5D4" stroke-width="1.2"/>
+      <text x="87" y="24" font-family="monospace" font-size="13" font-weight="bold" fill="#00F5D4" text-anchor="middle">com.abhi.kshan</text>
+
+      <rect x="190" y="0" width="195" height="38" rx="19" fill="#0F172A" stroke="#38BDF8" stroke-width="1.2"/>
+      <text x="287" y="24" font-family="monospace" font-size="13" font-weight="bold" fill="#38BDF8" text-anchor="middle">Jetpack Compose M3</text>
+
+      <rect x="400" y="0" width="210" height="38" rx="19" fill="#0F172A" stroke="#A855F7" stroke-width="1.2"/>
+      <text x="505" y="24" font-family="monospace" font-size="13" font-weight="bold" fill="#A855F7" text-anchor="middle">4×2 &amp; 4×1 Live Widgets</text>
+    </g>
+  </g>
+
+  <!-- Right Orbital Timepiece Preview Card -->
+  <g transform="translate(760, 52)">
+    <rect x="0" y="0" width="376" height="316" rx="28" fill="#0B101E" stroke="url(#accentGrad)" stroke-width="2"/>
+    <circle cx="188" cy="118" r="70" fill="none" stroke="#1E293B" stroke-width="8"/>
+    <path d="M 188 48 A 70 70 0 1 1 124 146" fill="none" stroke="url(#accentGrad)" stroke-width="8" stroke-linecap="round"/>
+    <text x="188" y="114" font-family="monospace" font-size="34" font-weight="bold" fill="#F8FAFC" text-anchor="middle">45d</text>
+    <text x="188" y="138" font-family="monospace" font-size="12" font-weight="bold" fill="#00F5D4" text-anchor="middle">14 : 28 : 09</text>
+    <text x="188" y="226" font-family="sans-serif" font-size="18" font-weight="bold" fill="#F8FAFC" text-anchor="middle">New Year 2027</text>
+    <text x="188" y="250" font-family="monospace" font-size="12" fill="#94A3B8" text-anchor="middle">MILESTONE • LIVE TICKING</text>
+    <rect x="58" y="268" width="260" height="30" rx="15" fill="#131C31"/>
+    <text x="188" y="288" font-family="monospace" font-size="12" font-weight="bold" fill="#FFD700" text-anchor="middle">🎆 6-Archetype Pyro Engine</text>
+  </g>
+</svg>

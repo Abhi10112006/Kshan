@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:allowBackup="true"
@@ -25,12 +26,16 @@
             </intent-filter>
         </activity>
 
-        <!-- Chrono-Scope Home Screen AppWidget -->
+        <!-- क्षण (Kshan) Home Screen AppWidget & Scheduled Target-Boundary Receiver -->
         <receiver
             android:name=".widget.ChronoWidgetProvider"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="com.abhi.kshan.widget.ACTION_BOUNDARY_REFRESH" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

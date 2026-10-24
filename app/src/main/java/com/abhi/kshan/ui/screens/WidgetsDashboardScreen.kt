@@ -66,10 +66,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.abhi.kshan.data.ChronoEvent
 import com.abhi.kshan.engine.TimeEngine
 import com.abhi.kshan.ui.components.FrostedGlassCard
 import com.abhi.kshan.ui.components.ModernPillButton
 import com.abhi.kshan.ui.components.ModernToggle
+import com.abhi.kshan.ui.components.YearDotMatrixGrid
 import com.abhi.kshan.ui.theme.ComicNeueFontFamily
 import com.abhi.kshan.ui.theme.NeonBlue
 import com.abhi.kshan.ui.theme.NeonCyan
@@ -87,12 +89,14 @@ import com.abhi.kshan.widget.ChronoWidgetPinningManager
 import com.abhi.kshan.widget.ChronoWidgetPreferences
 import com.abhi.kshan.widget.WidgetCustomSettings
 import kotlinx.coroutines.delay
+import java.time.LocalDate
 
 @Composable
 fun WidgetsDashboardScreen(
     uiState: ChronoUiState,
     onPowerSaverToggled: (Boolean) -> Unit,
     onHudInteraction: (String) -> Unit,
+    savedEvents: List<ChronoEvent> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -100,6 +104,7 @@ fun WidgetsDashboardScreen(
     var copiedCheck by remember { mutableStateOf(false) }
     var selectedFormat by remember { mutableStateOf(WidgetPreviewFormat.PANORAMIC_4X2) }
     var showManualGuideDialog by remember { mutableStateOf(false) }
+    var showYearDotMatrix by remember { mutableStateOf(true) }
 
     // Live Customizer State
     val initialSettings = remember { ChronoWidgetPreferences.loadSettings(context) }
@@ -487,7 +492,7 @@ fun WidgetsDashboardScreen(
             }
         }
 
-        // 3. Year & Seasons Progress Card
+        // 3. Year & Seasons Progress Card (with 365-Dot Matrix Grid & Orbital Ring Toggle)
         item {
             val progressAnim by animateFloatAsState(
                 targetValue = uiState.widgetTelemetry.yearProgressPercent / 100f,
@@ -501,9 +506,6 @@ fun WidgetsDashboardScreen(
                 cornerRadius = 24.dp,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
-                        onHudInteraction("Visual progress through the calendar year and upcoming seasons.")
-                    }
                     .testTag("widget_year_progress")
             ) {
                 Column {
@@ -537,6 +539,116 @@ fun WidgetsDashboardScreen(
                             )
                         }
 
+                        // Toggle Pill: 365 Dots vs Orbital Ring
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(50))
+                                .background(SpaceDark)
+                                .border(1.dp, SpaceCardBorder, RoundedCornerShape(50))
+                                .padding(2.dp)
+                                .testTag("year_view_mode_toggle"),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (showYearDotMatrix) NeonCyan.copy(alpha = 0.22f) else Color.Transparent)
+                                    .clickable {
+                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        showYearDotMatrix = true
+                                    }
+                                    .padding(horizontal = 9.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "365 Dots",
+                                    fontFamily = ComicNeueFontFamily,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (showYearDotMatrix) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (showYearDotMatrix) NeonCyan else TextSecondary
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (!showYearDotMatrix) NeonCyan.copy(alpha = 0.22f) else Color.Transparent)
+                                    .clickable {
+                                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                        showYearDotMatrix = false
+                                    }
+                                    .padding(horizontal = 9.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Ring",
+                                    fontFamily = ComicNeueFontFamily,
+                                    fontSize = 11.sp,
+                                    fontWeight = if (!showYearDotMatrix) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (!showYearDotMatrix) NeonCyan else TextSecondary
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Summary Row with Season Pill
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier.size(64.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    val strokeWidth = 6.5.dp.toPx()
+                                    drawArc(
+                                        color = SpaceCardBorder,
+                                        startAngle = -90f,
+                                        sweepAngle = 360f,
+                                        useCenter = false,
+                                        style = Stroke(strokeWidth, cap = StrokeCap.Round)
+                                    )
+                                    drawArc(
+                                        brush = Brush.sweepGradient(
+                                            listOf(NeonCyan, NeonPurple, NeonBlue, NeonCyan)
+                                        ),
+                                        startAngle = -90f,
+                                        sweepAngle = 360f * progressAnim,
+                                        useCenter = false,
+                                        style = Stroke(strokeWidth, cap = StrokeCap.Round)
+                                    )
+                                }
+
+                                Text(
+                                    text = String.format("%.0f%%", uiState.widgetTelemetry.yearProgressPercent),
+                                    fontFamily = TabularMonoFontFamily,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Black,
+                                    color = TextPrimary
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(14.dp))
+
+                            Column {
+                                Text(
+                                    text = "Day ${uiState.widgetTelemetry.dayOfYear} of ${uiState.widgetTelemetry.totalDaysInYear}",
+                                    fontFamily = ComicNeueFontFamily,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    text = "${uiState.widgetTelemetry.totalDaysInYear - uiState.widgetTelemetry.dayOfYear} days remaining • ${String.format("%.2f%%", uiState.widgetTelemetry.yearProgressPercent)}",
+                                    fontFamily = ComicNeueFontFamily,
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(50))
@@ -553,68 +665,15 @@ fun WidgetsDashboardScreen(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier.size(80.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val strokeWidth = 8.dp.toPx()
-                                drawArc(
-                                    color = SpaceCardBorder,
-                                    startAngle = -90f,
-                                    sweepAngle = 360f,
-                                    useCenter = false,
-                                    style = Stroke(strokeWidth, cap = StrokeCap.Round)
-                                )
-                                drawArc(
-                                    brush = Brush.sweepGradient(
-                                        listOf(NeonCyan, NeonPurple, NeonBlue, NeonCyan)
-                                    ),
-                                    startAngle = -90f,
-                                    sweepAngle = 360f * progressAnim,
-                                    useCenter = false,
-                                    style = Stroke(strokeWidth, cap = StrokeCap.Round)
-                                )
-                            }
-
-                            Text(
-                                text = String.format("%.0f%%", uiState.widgetTelemetry.yearProgressPercent),
-                                fontFamily = TabularMonoFontFamily,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Black,
-                                color = TextPrimary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(20.dp))
-
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Day ${uiState.widgetTelemetry.dayOfYear} of ${uiState.widgetTelemetry.totalDaysInYear}",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "${uiState.widgetTelemetry.totalDaysInYear - uiState.widgetTelemetry.dayOfYear} days remaining in this year",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 13.sp,
-                                color = TextSecondary
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Exact: ${String.format("%.2f%%", uiState.widgetTelemetry.yearProgressPercent)} completed",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 12.sp,
-                                color = NeonCyan
+                    AnimatedVisibility(visible = showYearDotMatrix) {
+                        Column {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            YearDotMatrixGrid(
+                                currentYear = LocalDate.now().year,
+                                dayOfYear = uiState.widgetTelemetry.dayOfYear,
+                                totalDaysInYear = uiState.widgetTelemetry.totalDaysInYear,
+                                savedEvents = savedEvents,
+                                onDayInspected = onHudInteraction
                             )
                         }
                     }

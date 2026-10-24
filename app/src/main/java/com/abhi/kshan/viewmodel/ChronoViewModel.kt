@@ -9,6 +9,7 @@ import com.abhi.kshan.data.ChronoEvent
 import com.abhi.kshan.engine.CountdownStatus
 import com.abhi.kshan.engine.CountdownTelemetry
 import com.abhi.kshan.engine.DifferenceResult
+import com.abhi.kshan.engine.PresentKshanTelemetry
 import com.abhi.kshan.engine.TimeEngine
 import com.abhi.kshan.engine.WidgetTelemetry
 import com.abhi.kshan.widget.ChronoWidgetProvider
@@ -50,10 +51,14 @@ data class ChronoUiState(
     val mathExcludeWeekends: Boolean = false,
     val mathArrivalDate: LocalDate = LocalDate.now().plusDays(7),
 
-    // Countdown Engine
+    // Countdown & Count-Up Engine
     val countdownTarget: ZonedDateTime = ZonedDateTime.now().plusDays(30),
+    val effectiveCountdownTarget: ZonedDateTime = ZonedDateTime.now().plusDays(30),
     val activeEventTitle: String = "New Year's Celebration",
     val activeEventCategory: String = "Holiday",
+    val overrideCountUpMode: Boolean? = null,
+    val isCountUpMode: Boolean = false,
+    val isAutoRolled: Boolean = false,
     val countdownTelemetry: CountdownTelemetry = CountdownTelemetry(
         days = 30,
         hours = 0,
@@ -62,7 +67,8 @@ data class ChronoUiState(
         status = CountdownStatus.ACTIVE
     ),
 
-    // Astronomical & Widget Telemetry
+    // Present Kshan ("वर्तमान क्षण") & Astronomical Telemetry
+    val presentKshanTelemetry: PresentKshanTelemetry = TimeEngine.calculatePresentKshanTelemetry(ZonedDateTime.now()),
     val widgetTelemetry: WidgetTelemetry = TimeEngine.calculateWidgetTelemetry(ZonedDateTime.now())
 )
 
@@ -98,7 +104,8 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                             it.copy(
                                 countdownTarget = parsed,
                                 activeEventTitle = event.title,
-                                activeEventCategory = event.category
+                                activeEventCategory = event.category,
+                                overrideCountUpMode = null
                             )
                         }
                         tickTelemetry()
@@ -120,19 +127,82 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
      */
     fun tickTelemetry() {
         val now = ZonedDateTime.now(getZoneId())
-        val target = _uiState.value.countdownTarget.withZoneSameInstant(getZoneId())
-        val telemetry = TimeEngine.calculateCountdown(now, target)
-        val widgets = TimeEngine.calculateWidgetTelemetry(now)
+        val state = _uiState.value
+        val rawTarget = state.countdownTarget.withZoneSameInstant(getZoneId())
 
-        val shouldCelebrate = telemetry.status == CountdownStatus.TARGET_REACHED &&
-                _uiState.value.countdownTelemetry.status != CountdownStatus.TARGET_REACHED
+        val effectiveCountUp = state.overrideCountUpMode
+            ?: TimeEngine.shouldDefaultToCountUp(now, rawTarget, state.activeEventCategory)
+
+        val (effectiveTarget, autoRolled) = TimeEngine.resolveEffectiveTarget(
+            now = now,
+            rawTarget = rawTarget,
+            category = state.activeEventCategory,
+            isCountUpMode = effectiveCountUp
+        )
+
+        val telemetry = if (effectiveCountUp) {
+            TimeEngine.calculateElapsedSince(now, rawTarget)
+        } else {
+            TimeEngine.calculateCountdown(now, effectiveTarget)
+        }
+
+        val widgets = TimeEngine.calculateWidgetTelemetry(now)
+        val presentKshan = TimeEngine.calculatePresentKshanTelemetry(now)
+
+        val shouldCelebrate = !effectiveCountUp &&
+                telemetry.status == CountdownStatus.TARGET_REACHED &&
+                state.countdownTelemetry.status != CountdownStatus.TARGET_REACHED
 
         _uiState.update {
             it.copy(
+                effectiveCountdownTarget = effectiveTarget,
+                isCountUpMode = effectiveCountUp,
+                isAutoRolled = autoRolled,
                 countdownTelemetry = telemetry,
+                presentKshanTelemetry = presentKshan,
                 widgetTelemetry = widgets,
                 triggerCelebration = if (shouldCelebrate) true else it.triggerCelebration
             )
+        }
+    }
+
+    fun toggleCountUpMode(enabled: Boolean) {
+        _uiState.update {
+            it.copy(
+                overrideCountUpMode = enabled,
+                hudLogText = if (enabled) "Switched to Days Since (+) live elapsed chronometer."
+                else "Switched to Count Down (−) mode."
+            )
+        }
+        tickTelemetry()
+    }
+
+    fun capturePresentKshan(customTitle: String = "") {
+        val now = ZonedDateTime.now(getZoneId())
+        val finalTitle = customTitle.trim().ifBlank {
+            "Kshan • ${now.format(TimeEngine.SHORT_DATE_FORMATTER)} ${now.format(TimeEngine.TIME_FORMATTER)}"
+        }
+        viewModelScope.launch {
+            val event = ChronoEvent(
+                title = finalTitle,
+                targetIsoString = now.toString(),
+                category = "Kshan",
+                isPinned = false,
+                createdAtIsoString = now.toString()
+            )
+            dao.insertEvent(event)
+            _uiState.update {
+                it.copy(
+                    currentTab = ChronoTab.COUNTDOWN,
+                    countdownTarget = now,
+                    activeEventTitle = finalTitle,
+                    activeEventCategory = "Kshan",
+                    overrideCountUpMode = null,
+                    hudLogText = "Captured auspicious Kshan: '$finalTitle'"
+                )
+            }
+            tickTelemetry()
+            ChronoWidgetProvider.updateAllWidgets(getApplication())
         }
     }
 
@@ -140,8 +210,8 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
         val log = when (tab) {
             ChronoTab.DIFFERENCE -> "Find out exactly how many days and months are between two dates."
             ChronoTab.DATE_MATH -> "Add or subtract days to calculate past or future dates."
-            ChronoTab.COUNTDOWN -> "Live ticking countdowns to your important events and goals."
-            ChronoTab.WIDGETS -> "Helpful widgets including Year Progress and your Home Screen companion."
+            ChronoTab.COUNTDOWN -> "Live ticking countdowns & Days Since chronometers for your milestones."
+            ChronoTab.WIDGETS -> "Helpful widgets including 365-Dot Year Matrix and your Home Screen companion."
         }
         _uiState.update { it.copy(currentTab = tab, hudLogText = log) }
     }
@@ -254,7 +324,8 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                 countdownTarget = target,
                 activeEventTitle = title,
                 activeEventCategory = category,
-                hudLogText = "Tracking countdown for: $title"
+                overrideCountUpMode = null,
+                hudLogText = "Tracking milestone: $title"
             )
         }
         tickTelemetry()
@@ -275,7 +346,8 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                     countdownTarget = target,
                     activeEventTitle = title,
                     activeEventCategory = category,
-                    hudLogText = "Added new countdown: '$title'"
+                    overrideCountUpMode = null,
+                    hudLogText = "Added new milestone: '$title'"
                 )
             }
             tickTelemetry()
@@ -324,6 +396,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                             countdownTarget = nextTarget,
                             activeEventTitle = nextEvent.title,
                             activeEventCategory = nextEvent.category,
+                            overrideCountUpMode = null,
                             hudLogText = "Removed '${event.title}'. Switched to '${nextEvent.title}'."
                         )
                     }
@@ -335,6 +408,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                     it.copy(
                         activeEventTitle = "No active countdowns",
                         activeEventCategory = "Celebration",
+                        overrideCountUpMode = null,
                         hudLogText = "Removed '${event.title}'. No countdowns remaining."
                     )
                 }

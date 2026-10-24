@@ -48,8 +48,10 @@ import com.abhi.kshan.ui.components.AmbientHeroResult
 import com.abhi.kshan.ui.components.ConnectedDateCards
 import com.abhi.kshan.ui.components.CyberDatePickerDialog
 import com.abhi.kshan.ui.components.FrostedGlassCard
+import com.abhi.kshan.ui.components.MechanicalScrubRuler
 import com.abhi.kshan.ui.components.ModernCapsuleChip
 import com.abhi.kshan.ui.components.ModernToggle
+import com.abhi.kshan.ui.components.TemporalConstellationHero
 import com.abhi.kshan.ui.theme.ComicNeueFontFamily
 import com.abhi.kshan.ui.theme.NeonCyan
 import com.abhi.kshan.ui.theme.NeonPurple
@@ -64,6 +66,7 @@ import java.time.LocalDate
 
 import android.view.HapticFeedbackConstants
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.platform.LocalView
 
 @Composable
@@ -78,6 +81,8 @@ fun DifferenceScreen(
     val view = LocalView.current
     var showStartPicker by remember { mutableStateOf(false) }
     var showEndPicker by remember { mutableStateOf(false) }
+    // 0 = Scrub Start Date, 1 = Scrub End Date (defaults to End Date)
+    var scrubTargetIndex by remember { mutableIntStateOf(1) }
 
     val scrollState = rememberScrollState()
 
@@ -91,13 +96,16 @@ fun DifferenceScreen(
         )
     }
 
+    val activeScrubAccent = if (scrubTargetIndex == 0) NeonCyan else NeonPurple
+    val activeScrubDate = if (scrubTargetIndex == 0) uiState.diffStart else uiState.diffEnd
+
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // 1. Connected Date Cards with Floating Center ⇄ Badge
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
@@ -111,12 +119,13 @@ fun DifferenceScreen(
                             .fillMaxHeight()
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                scrubTargetIndex = 0
                                 onHudInteraction("Tap to change your start date.")
                                 showStartPicker = true
                             }
                             .testTag("diff_start_button"),
                         borderColor = NeonCyan,
-                        glowAlpha = 0.5f,
+                        glowAlpha = if (scrubTargetIndex == 0) 0.65f else 0.4f,
                         cornerRadius = 24.dp
                     ) {
                         Column {
@@ -170,12 +179,13 @@ fun DifferenceScreen(
                             .fillMaxHeight()
                             .clickable {
                                 view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                                scrubTargetIndex = 1
                                 onHudInteraction("Tap to change your destination date.")
                                 showEndPicker = true
                             }
                             .testTag("diff_end_button"),
                         borderColor = NeonPurple,
-                        glowAlpha = 0.5f,
+                        glowAlpha = if (scrubTargetIndex == 1) 0.65f else 0.4f,
                         cornerRadius = 24.dp
                     ) {
                         Column {
@@ -225,9 +235,36 @@ fun DifferenceScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // 2. Preset Chips with Edge-to-Edge scrolling (PaddingValues horizontal = 24.dp)
+        // 2. Tactile Mechanical Time Wheel / Scrubbing Ruler with Start / End Target Selector Pill
+        Box(modifier = Modifier.padding(horizontal = 22.dp)) {
+            MechanicalScrubRuler(
+                targetOptions = listOf("Start Date", "End Date"),
+                selectedTargetIndex = scrubTargetIndex,
+                onTargetSelected = { idx ->
+                    scrubTargetIndex = idx
+                    onHudInteraction(
+                        if (idx == 0) "Crown Scrubber focused on Start Date."
+                        else "Crown Scrubber focused on End Date."
+                    )
+                },
+                activeValueReadout = activeScrubDate.format(TimeEngine.SHORT_DATE_FORMATTER),
+                accentColor = activeScrubAccent,
+                onStepDelta = { deltaDays ->
+                    if (scrubTargetIndex == 0) {
+                        onStartChanged(uiState.diffStart.plusDays(deltaDays.toLong()))
+                    } else {
+                        onEndChanged(uiState.diffEnd.plusDays(deltaDays.toLong()))
+                    }
+                },
+                testTag = "diff_mechanical_ruler"
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 3. Preset Chips with Edge-to-Edge scrolling (PaddingValues horizontal = 24.dp)
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -242,9 +279,9 @@ fun DifferenceScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // 3. Skip Weekends Switch Card
+        // 4. Skip Weekends Switch Card
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             FrostedGlassCard(
                 modifier = Modifier
@@ -308,10 +345,15 @@ fun DifferenceScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        // 4. Ambient Hero Result (Eliminating uniform box outline, rendering luminous ambient aura)
-        Box(modifier = Modifier.padding(horizontal = 22.dp)) {
+        // 5. Temporal Constellation Hero (Visual Timeline Arc + Hero Number + 3-Card Human Rhythm Carousel)
+        TemporalConstellationHero(
+            startDate = uiState.diffStart,
+            endDate = uiState.diffEnd,
+            daysCount = uiState.differenceResult.daysCount,
+            accentColor = NeonCyan
+        ) {
             AnimatedContent(
                 targetState = uiState.differenceResult.daysCount,
                 transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(200)) },
@@ -328,7 +370,7 @@ fun DifferenceScreen(
             }
         }
 
-        // 5. 120.dp Bottom Spacer to prevent navigation dock collision
+        // 6. 120.dp Bottom Spacer to prevent navigation dock collision
         Spacer(modifier = Modifier.height(120.dp))
     }
 

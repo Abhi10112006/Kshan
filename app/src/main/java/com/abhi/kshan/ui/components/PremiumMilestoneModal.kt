@@ -107,6 +107,17 @@ fun resolveCelebrationTheme(category: String, title: String): CategoryCelebratio
     val lowerTitle = title.lowercase()
 
     return when {
+        lowerCat.contains("kshan") || lowerTitle.contains("kshan") -> {
+            CategoryCelebrationTheme(
+                badgeLabel = "AUSPICIOUS KSHAN",
+                statusPillText = "PRESENT MOMENT CAPTURED • CHERISHED IN TIME",
+                icon = Icons.Default.AutoAwesome,
+                primaryColor = GoldMetallic,
+                secondaryColor = NeonCyan,
+                burstButtonText = "Burst Golden Kshan Fireworks",
+                shareTemplate = { "✨ Captured an auspicious moment in time: '$it' with क्षण (Kshan)." }
+            )
+        }
         lowerCat.contains("holiday") || lowerCat.contains("vacation") || lowerCat.contains("season") ||
                 lowerTitle.contains("holiday") || lowerTitle.contains("vacation") || lowerTitle.contains("trip") || lowerTitle.contains("summer") || lowerTitle.contains("winter") -> {
             CategoryCelebrationTheme(

@@ -117,6 +117,7 @@ fun CountdownScreen(
     onHudInteraction: (String) -> Unit,
     onClearCelebration: () -> Unit = {},
     onSelectEvent: (ChronoEvent) -> Unit = {},
+    onToggleCountUpMode: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var showAddSheet by remember { mutableStateOf(false) }
@@ -126,11 +127,13 @@ fun CountdownScreen(
         resolveCelebrationTheme(uiState.activeEventCategory, uiState.activeEventTitle)
     }
 
-    val statusText = when (uiState.countdownTelemetry.status) {
-        CountdownStatus.ACTIVE -> "Ticking live"
-        CountdownStatus.TARGET_REACHED -> activeTheme.statusPillText
-        CountdownStatus.EVENT_PASSED -> "Event has passed"
-        CountdownStatus.AWAITING -> "Waiting for date..."
+    val statusText = when {
+        uiState.isCountUpMode -> "Counting up live (+)"
+        uiState.isAutoRolled -> "Auto-rolled to ${uiState.effectiveCountdownTarget.year}"
+        uiState.countdownTelemetry.status == CountdownStatus.ACTIVE -> "Ticking live"
+        uiState.countdownTelemetry.status == CountdownStatus.TARGET_REACHED -> activeTheme.statusPillText
+        uiState.countdownTelemetry.status == CountdownStatus.EVENT_PASSED -> "Event has passed"
+        else -> "Waiting for date..."
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -143,7 +146,7 @@ fun CountdownScreen(
             item {
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // 1. Unified Hero Orbital Timepiece Card (with animated progress arc & pulsing colons)
+                // 1. Unified Hero Orbital Timepiece Card (with Count Down / Days Since toggle & auto-rollover badge)
                 HeroOrbitalTimepiece(
                     days = uiState.countdownTelemetry.days,
                     hours = uiState.countdownTelemetry.hours,
@@ -152,7 +155,11 @@ fun CountdownScreen(
                     categoryName = uiState.activeEventCategory,
                     eventTitle = uiState.activeEventTitle,
                     statusText = statusText,
-                    accentColor = activeTheme.primaryColor
+                    accentColor = activeTheme.primaryColor,
+                    isCountUpMode = uiState.isCountUpMode,
+                    isAutoRolled = uiState.isAutoRolled,
+                    targetYear = uiState.effectiveCountdownTarget.year,
+                    onToggleCountUpMode = onToggleCountUpMode
                 )
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -232,7 +239,11 @@ fun CountdownScreen(
                 (uiState.countdownTelemetry.hours * 3600L) +
                 (uiState.countdownTelemetry.minutes * 60L) +
                 uiState.countdownTelemetry.seconds
-        val remFormatted = "${uiState.countdownTelemetry.days}d ${uiState.countdownTelemetry.hours}h ${uiState.countdownTelemetry.minutes}m remaining"
+        val remFormatted = if (uiState.isCountUpMode) {
+            "+${uiState.countdownTelemetry.days}d ${uiState.countdownTelemetry.hours}h ${uiState.countdownTelemetry.minutes}m elapsed"
+        } else {
+            "${uiState.countdownTelemetry.days}d ${uiState.countdownTelemetry.hours}h ${uiState.countdownTelemetry.minutes}m remaining"
+        }
 
         CelebrationFireworksOverlay(
             visible = showCelebrationCard || uiState.triggerCelebration,
@@ -311,12 +322,29 @@ private fun SavedCountdownCard(
         label = "card_border_color"
     )
 
-    val (dateText, daysLeftText) = remember(event.targetIsoString) {
+    val (dateText, daysLeftText) = remember(event.targetIsoString, event.category) {
         try {
-            val zdt = ZonedDateTime.parse(event.targetIsoString)
-            val formatted = zdt.format(TimeEngine.FULL_DATE_FORMATTER)
-            val days = ChronoUnit.DAYS.between(LocalDate.now(), zdt.toLocalDate()).coerceAtLeast(0L)
-            val badgeStr = if (days == 0L) "Today!" else "${days}d left"
+            val nowZdt = ZonedDateTime.now()
+            val rawZdt = ZonedDateTime.parse(event.targetIsoString)
+            val isCountUp = TimeEngine.shouldDefaultToCountUp(nowZdt, rawZdt, event.category)
+            val (effectiveZdt, autoRolled) = TimeEngine.resolveEffectiveTarget(
+                now = nowZdt,
+                rawTarget = rawZdt,
+                category = event.category,
+                isCountUpMode = isCountUp
+            )
+            val formatted = if (autoRolled) {
+                "${effectiveZdt.format(TimeEngine.FULL_DATE_FORMATTER)} (↻ Next)"
+            } else {
+                effectiveZdt.format(TimeEngine.FULL_DATE_FORMATTER)
+            }
+            val badgeStr = if (isCountUp) {
+                val elapsedDays = ChronoUnit.DAYS.between(rawZdt.toLocalDate(), LocalDate.now()).coerceAtLeast(0L)
+                if (elapsedDays == 0L) "+Today" else "+${elapsedDays}d since"
+            } else {
+                val days = ChronoUnit.DAYS.between(LocalDate.now(), effectiveZdt.toLocalDate()).coerceAtLeast(0L)
+                if (days == 0L) "Today!" else "${days}d left"
+            }
             Pair(formatted, badgeStr)
         } catch (e: Exception) {
             Log.w("CountdownScreen", "Failed to parse event targetIsoString: ${event.targetIsoString}", e)

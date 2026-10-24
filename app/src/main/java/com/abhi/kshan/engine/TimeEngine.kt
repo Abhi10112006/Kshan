@@ -4,10 +4,13 @@ import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
 import java.time.Period
+import java.time.YearMonth
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.time.temporal.IsoFields
+import java.util.Locale
+import kotlin.math.abs
 
 data class DifferenceResult(
     val daysCount: Long,
@@ -37,6 +40,28 @@ data class QuickJumpItem(
     val daysAdded: Int
 )
 
+data class TemporalContextCardItem(
+    val title: String,
+    val primaryMetric: String,
+    val secondaryMetric: String,
+    val poeticCaption: String
+)
+
+data class TemporalConstellationTelemetry(
+    val todayProgressAlongArc: Float?, // 0f..1f if Today lies between min(start,end) and max(start,end), else clamped indicator
+    val isTodayInsideSpan: Boolean,
+    val cards: List<TemporalContextCardItem>
+)
+
+data class PresentKshanTelemetry(
+    val dayElapsedPercent: Float,
+    val secondsIntoDay: Int,
+    val secondsRemainingInDay: Int,
+    val rituNameDevanagari: String,
+    val rituNameEnglish: String,
+    val cosmicSubtitle: String
+)
+
 data class WidgetTelemetry(
     val dayOfYear: Int,
     val totalDaysInYear: Int,
@@ -56,10 +81,202 @@ data class WidgetTelemetry(
 
 object TimeEngine {
 
-    val DISPLAY_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy")
-    val SHORT_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy")
-    val FULL_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy")
-    val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("hh:mm a")
+    val DISPLAY_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEE, MMM d, yyyy", Locale.US)
+    val SHORT_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
+    val FULL_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.US)
+    val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
+
+    private val RECURRING_CATEGORIES = setOf("holiday", "birthday", "anniversary", "festival")
+
+    fun isRecurringCategory(category: String): Boolean {
+        val lower = category.trim().lowercase(Locale.US)
+        return RECURRING_CATEGORIES.any { lower.contains(it) }
+    }
+
+    /**
+     * Determines whether an event should automatically default to Days Since (+) mode
+     * when selected, unless the user explicitly overrides the mode pill.
+     */
+    fun shouldDefaultToCountUp(
+        now: ZonedDateTime,
+        rawTarget: ZonedDateTime,
+        category: String
+    ): Boolean {
+        if (category.equals("Kshan", ignoreCase = true)) return true
+        return rawTarget.toInstant().isBefore(now.toInstant()) && !isRecurringCategory(category)
+    }
+
+    /**
+     * Resolves the effective target ZonedDateTime and whether an annual recurring event
+     * was automatically rolled forward to its next upcoming occurrence.
+     */
+    fun resolveEffectiveTarget(
+        now: ZonedDateTime,
+        rawTarget: ZonedDateTime,
+        category: String,
+        isCountUpMode: Boolean
+    ): Pair<ZonedDateTime, Boolean> {
+        if (!isCountUpMode && rawTarget.toInstant().isBefore(now.toInstant()) && isRecurringCategory(category)) {
+            var rolled = rawTarget
+            while (!rolled.toInstant().isAfter(now.toInstant())) {
+                rolled = rolled.plusYears(1)
+            }
+            return Pair(rolled, true)
+        }
+        return Pair(rawTarget, false)
+    }
+
+    /**
+     * Calculates live elapsed time since a past or captured Kshan milestone (`+ Days Since`).
+     */
+    fun calculateElapsedSince(now: ZonedDateTime, origin: ZonedDateTime): CountdownTelemetry {
+        val duration = Duration.between(origin.toInstant(), now.toInstant()).abs()
+        val totalSeconds = duration.seconds
+        val days = totalSeconds / 86400L
+        val hours = (totalSeconds % 86400L) / 3600L
+        val minutes = (totalSeconds % 3600L) / 60L
+        val seconds = totalSeconds % 60L
+        return CountdownTelemetry(
+            days = days,
+            hours = hours,
+            minutes = minutes,
+            seconds = seconds,
+            status = CountdownStatus.ACTIVE
+        )
+    }
+
+    /**
+     * Projects any saved ChronoEvent onto the current calendar year's 1..365/366 day index.
+     * Recurring categories (Birthday, Holiday, Anniversary, Festival) are projected onto
+     * `currentYear` with leap-year safety so past-year birthdays and next-year rolled holidays
+     * always glow as gold milestone stars on the 365-dot Year Matrix.
+     */
+    fun projectEventDayOfYear(
+        eventZdt: ZonedDateTime,
+        category: String,
+        currentYear: Int
+    ): Int? {
+        val eventDate = eventZdt.toLocalDate()
+        return if (eventDate.year == currentYear) {
+            eventDate.dayOfYear
+        } else if (isRecurringCategory(category)) {
+            val ym = YearMonth.of(currentYear, eventDate.month)
+            val safeDay = eventDate.dayOfMonth.coerceAtMost(ym.lengthOfMonth())
+            ym.atDay(safeDay).dayOfYear
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Calculates the "Present Moment (वर्तमान क्षण)" telemetry for the expandable header soul card.
+     */
+    fun calculatePresentKshanTelemetry(now: ZonedDateTime): PresentKshanTelemetry {
+        val localTime = now.toLocalTime()
+        val secondsIntoDay = localTime.toSecondOfDay()
+        val secondsRemaining = (86400 - secondsIntoDay).coerceAtLeast(0)
+        val dayPercent = (secondsIntoDay.toFloat() / 86400f) * 100f
+
+        val month = now.monthValue
+        val (rituDev, rituEng, subtitle) = when (month) {
+            3, 4 -> Triple("वसंत ऋतु", "Vasanta • Spring", "Blossoming Vernal Equinox Rhythm")
+            5, 6 -> Triple("ग्रीष्म ऋतु", "Grishma • High Sun", "Radiant Solstice Zenith")
+            7, 8 -> Triple("वर्षा ऋतु", "Varsha • Monsoon", "Atmospheric Renewal & Rain")
+            9, 10 -> Triple("शरद ऋतु", "Sharad • Autumn", "Luminous Harvest & Clear Skies")
+            11, 12 -> Triple("हेमंत ऋतु", "Hemanta • Pre-Winter", "Crisp Starlight & Amber Twilight")
+            else -> Triple("शिशिर ऋतु", "Shishira • Deep Winter", "Still Cosmic Solitude & Frost")
+        }
+
+        return PresentKshanTelemetry(
+            dayElapsedPercent = dayPercent,
+            secondsIntoDay = secondsIntoDay,
+            secondsRemainingInDay = secondsRemaining,
+            rituNameDevanagari = rituDev,
+            rituNameEnglish = rituEng,
+            cosmicSubtitle = subtitle
+        )
+    }
+
+    /**
+     * Builds the 3-card Temporal Constellation & Visual Timeline Arc telemetry
+     * for the Span (Difference) and Shift (Date Math) screens.
+     */
+    fun calculateTemporalConstellation(
+        start: LocalDate,
+        end: LocalDate,
+        daysCount: Long,
+        today: LocalDate = LocalDate.now()
+    ): TemporalConstellationTelemetry {
+        val minDate = if (start.isBefore(end)) start else end
+        val maxDate = if (start.isBefore(end)) end else start
+        val rawSpanDays = ChronoUnit.DAYS.between(minDate, maxDate)
+
+        val isInside = !today.isBefore(minDate) && !today.isAfter(maxDate) && rawSpanDays > 0L
+        val progress: Float? = when {
+            rawSpanDays == 0L -> if (today == minDate) 0.5f else null
+            isInside -> {
+                val fromMin = ChronoUnit.DAYS.between(minDate, today).toFloat()
+                val ratio = (fromMin / rawSpanDays.toFloat()).coerceIn(0f, 1f)
+                if (start.isBefore(end)) ratio else 1f - ratio
+            }
+            else -> null
+        }
+
+        val absDays = abs(daysCount)
+        val weeks = absDays / 7L
+        val remDays = absDays % 7L
+        val totalHours = absDays * 24L
+        val totalMinutes = totalHours * 60L
+
+        val humanRhythmPrimary = when {
+            absDays == 0L -> "0 Weeks • Instantaneous"
+            weeks > 0L && remDays > 0L -> "$weeks ${if (weeks == 1L) "Week" else "Weeks"}, $remDays ${if (remDays == 1L) "Day" else "Days"}"
+            weeks > 0L -> "$weeks ${if (weeks == 1L) "Week" else "Weeks"} Exact"
+            else -> "$remDays ${if (remDays == 1L) "Day" else "Days"}"
+        }
+        val humanRhythmSecondary = String.format(Locale.US, "%,d Hours • %,d Minutes", totalHours, totalMinutes)
+
+        val lunarCycles = absDays.toDouble() / 29.53059
+        val workWeeks = absDays.toDouble() / 5.0
+        val cosmicPrimary = String.format(Locale.US, "%.2f Lunar Cycles", lunarCycles)
+        val cosmicSecondary = String.format(Locale.US, "%.1f Standard 5-Day Workweeks", workWeeks)
+
+        val solarOrbitsPercent = (absDays.toDouble() / 365.2425) * 100.0
+        val heartbeatsMillions = (absDays.toDouble() * 100_800.0) / 1_000_000.0
+        val solarPrimary = String.format(Locale.US, "%.1f%% of a Solar Orbit", solarOrbitsPercent)
+        val solarSecondary = if (absDays == 0L) {
+            "A single present breath in time"
+        } else {
+            String.format(Locale.US, "~%.2fM Human Heartbeats", heartbeatsMillions)
+        }
+
+        val cards = listOf(
+            TemporalContextCardItem(
+                title = "HUMAN RHYTHM",
+                primaryMetric = humanRhythmPrimary,
+                secondaryMetric = humanRhythmSecondary,
+                poeticCaption = "Calendar cadence broken into weeks, hours & minutes"
+            ),
+            TemporalContextCardItem(
+                title = "COSMIC & WORK RHYTHM",
+                primaryMetric = cosmicPrimary,
+                secondaryMetric = cosmicSecondary,
+                poeticCaption = "Synodic moon phases (29.53d) & professional sprints"
+            ),
+            TemporalContextCardItem(
+                title = "SOLAR & LIFE PERSPECTIVE",
+                primaryMetric = solarPrimary,
+                secondaryMetric = solarSecondary,
+                poeticCaption = "Earth's orbital arc & human biological pulse (~70 bpm)"
+            )
+        )
+
+        return TemporalConstellationTelemetry(
+            todayProgressAlongArc = progress,
+            isTodayInsideSpan = isInside || (rawSpanDays == 0L && today == minDate),
+            cards = cards
+        )
+    }
 
     fun calculateDifference(
         start: LocalDate,

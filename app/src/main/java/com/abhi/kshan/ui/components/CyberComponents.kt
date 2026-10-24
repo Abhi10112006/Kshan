@@ -335,8 +335,13 @@ fun HeroOrbitalTimepiece(
     eventTitle: String,
     statusText: String,
     modifier: Modifier = Modifier,
-    accentColor: Color = NeonCyan
+    accentColor: Color = NeonCyan,
+    isCountUpMode: Boolean = false,
+    isAutoRolled: Boolean = false,
+    targetYear: Int? = null,
+    onToggleCountUpMode: ((Boolean) -> Unit)? = null
 ) {
+    val view = LocalView.current
     val infiniteTransition = rememberInfiniteTransition(label = "timepiece_colon")
     val colonAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
@@ -379,7 +384,7 @@ fun HeroOrbitalTimepiece(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Category & Status
+            // Category, Auto-Rollover Badge & Status
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center
@@ -399,6 +404,25 @@ fun HeroOrbitalTimepiece(
                         letterSpacing = 1.sp,
                         color = accentColor
                     )
+                }
+
+                if (isAutoRolled && targetYear != null) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(NeonEmerald.copy(alpha = 0.16f))
+                            .border(1.dp, NeonEmerald.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "↻ Next: $targetYear",
+                            fontFamily = CourierPrimeFontFamily,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = NeonEmerald
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
@@ -424,7 +448,7 @@ fun HeroOrbitalTimepiece(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Unified Monospace Digits Readout with Pulsing Colons
             Row(
@@ -432,13 +456,88 @@ fun HeroOrbitalTimepiece(
                 horizontalArrangement = Arrangement.Center,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                DigitBlock(value = String.format("%02d", days), label = "DAYS")
+                DigitBlock(
+                    value = if (isCountUpMode) "+${String.format("%02d", days)}" else String.format("%02d", days),
+                    label = if (isCountUpMode) "DAYS SINCE" else "DAYS"
+                )
                 PulsingColon(alpha = colonAlpha, accentColor = accentColor)
                 DigitBlock(value = String.format("%02d", hours), label = "HOURS")
                 PulsingColon(alpha = colonAlpha, accentColor = accentColor)
                 DigitBlock(value = String.format("%02d", minutes), label = "MINS")
                 PulsingColon(alpha = colonAlpha, accentColor = accentColor)
                 DigitBlock(value = String.format("%02d", seconds), label = "SECS", isHighlight = true, highlightColor = accentColor)
+            }
+
+            if (onToggleCountUpMode != null) {
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // 1-Tap Count Down (−) | Days Since (+) Mode Selector Pill
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(50))
+                        .background(SpaceDark.copy(alpha = 0.9f))
+                        .border(1.dp, SpaceCardBorder, RoundedCornerShape(50))
+                        .padding(3.dp)
+                        .testTag("countdown_mode_selector"),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val isDown = !isCountUpMode
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (isDown) accentColor.copy(alpha = 0.22f) else Color.Transparent)
+                            .then(
+                                if (isDown) Modifier.border(1.dp, accentColor.copy(alpha = 0.65f), RoundedCornerShape(50))
+                                else Modifier
+                            )
+                            .clickable {
+                                try {
+                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                } catch (e: Exception) {
+                                    Log.w("HeroOrbitalTimepiece", "Haptic unavailable", e)
+                                }
+                                onToggleCountUpMode(false)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                            .testTag("mode_pill_count_down")
+                    ) {
+                        Text(
+                            text = "− Count Down",
+                            fontFamily = ComicNeueFontFamily,
+                            fontSize = 11.5.sp,
+                            fontWeight = if (isDown) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isDown) accentColor else TextSecondary
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(if (isCountUpMode) accentColor.copy(alpha = 0.22f) else Color.Transparent)
+                            .then(
+                                if (isCountUpMode) Modifier.border(1.dp, accentColor.copy(alpha = 0.65f), RoundedCornerShape(50))
+                                else Modifier
+                            )
+                            .clickable {
+                                try {
+                                    view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                                } catch (e: Exception) {
+                                    Log.w("HeroOrbitalTimepiece", "Haptic unavailable", e)
+                                }
+                                onToggleCountUpMode(true)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                            .testTag("mode_pill_days_since")
+                    ) {
+                        Text(
+                            text = "+ Days Since",
+                            fontFamily = ComicNeueFontFamily,
+                            fontSize = 11.5.sp,
+                            fontWeight = if (isCountUpMode) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isCountUpMode) accentColor else TextSecondary
+                        )
+                    }
+                }
             }
         }
     }

@@ -1,6 +1,8 @@
 package com.abhi.kshan
 
 import android.os.Bundle
+import android.util.Log
+import android.view.HapticFeedbackConstants
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -14,6 +16,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,11 +36,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,8 +55,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.abhi.kshan.ui.components.DeveloperVisionModal
 import com.abhi.kshan.ui.components.FloatingGlassIslandDock
 import com.abhi.kshan.ui.components.LifecycleParticleCanvas
+import com.abhi.kshan.ui.components.PresentKshanDropdownCard
 import com.abhi.kshan.ui.screens.CountdownScreen
 import com.abhi.kshan.ui.screens.DateMathScreen
 import com.abhi.kshan.ui.screens.DifferenceScreen
@@ -85,6 +95,9 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
     val lifecycleOwner = LocalLifecycleOwner.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val savedEvents by viewModel.savedEvents.collectAsStateWithLifecycle()
+
+    var showPresentKshanOverlay by remember { mutableStateOf(false) }
+    var showDeveloperVisionModal by remember { mutableStateOf(false) }
 
     // Lifecycle-bound 1-second ticker: runs ONLY while Lifecycle is at least STARTED,
     // pausing automatically when the app moves to background to save battery.
@@ -141,8 +154,17 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                     .padding(top = innerPadding.calculateTopPadding())
                     .statusBarsPadding()
             ) {
-                // Top Header Branding: Kalam Devanagari Squircle & Kshan Title
-                KshanHeader()
+                // Top Header Branding: Interactive Kalam Devanagari Squircle ("वर्तमान क्षण") & "✦ Vision" Pill
+                KshanHeader(
+                    isPresentKshanOpen = showPresentKshanOverlay,
+                    onSquircleClick = {
+                        showPresentKshanOverlay = !showPresentKshanOverlay
+                    },
+                    onVisionClick = {
+                        showPresentKshanOverlay = false
+                        showDeveloperVisionModal = true
+                    }
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
@@ -195,11 +217,13 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                                 onTriggerCelebration = { viewModel.triggerManualCelebration() },
                                 onClearCelebration = { viewModel.clearCelebration() },
                                 onSelectEvent = { viewModel.selectActiveEvent(it) },
+                                onToggleCountUpMode = { viewModel.toggleCountUpMode(it) },
                                 onHudInteraction = { viewModel.setHudLog(it) }
                             )
 
                             ChronoTab.WIDGETS -> WidgetsDashboardScreen(
                                 uiState = uiState,
+                                savedEvents = savedEvents,
                                 onPowerSaverToggled = { viewModel.togglePowerSaver(it) },
                                 onHudInteraction = { viewModel.setHudLog(it) }
                             )
@@ -208,11 +232,35 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                 }
             }
         }
+
+        // 3. Floating "Present Moment (वर्तमान क्षण)" Overlay Card (zIndex = 10f so it never squishes layout)
+        PresentKshanDropdownCard(
+            visible = showPresentKshanOverlay,
+            telemetry = uiState.presentKshanTelemetry,
+            onCaptureKshan = { note ->
+                viewModel.capturePresentKshan(note)
+            },
+            onDismiss = { showPresentKshanOverlay = false }
+        )
+
+        // 4. Full-Screen Developer & Vision Showcase Modal ("✦ Vision" • Abhinav Yaduvanshi)
+        DeveloperVisionModal(
+            visible = showDeveloperVisionModal,
+            epochMillis = uiState.widgetTelemetry.epochMillis,
+            onDismiss = { showDeveloperVisionModal = false }
+        )
     }
 }
 
 @Composable
-fun KshanHeader() {
+fun KshanHeader(
+    isPresentKshanOpen: Boolean = false,
+    onSquircleClick: () -> Unit = {},
+    onVisionClick: () -> Unit = {}
+) {
+    val view = LocalView.current
+    val goldAccent = Color(0xFFFFD700)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -223,8 +271,21 @@ fun KshanHeader() {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                // (1) Frosted-Glass Squircle with ambient cyan/purple glow
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable {
+                        try {
+                            view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        } catch (e: Exception) {
+                            Log.w("KshanHeader", "Haptic feedback unavailable", e)
+                        }
+                        onSquircleClick()
+                    }
+                    .testTag("kshan_header_squircle_button")
+            ) {
+                // (1) Interactive Frosted-Glass Squircle ("वर्तमान क्षण")
                 Box(
                     modifier = Modifier
                         .size(46.dp)
@@ -238,12 +299,17 @@ fun KshanHeader() {
                             )
                         )
                         .border(
-                            width = 1.2.dp,
+                            width = 1.3.dp,
                             brush = Brush.verticalGradient(
-                                colors = listOf(
-                                    NeonCyan.copy(alpha = 0.7f),
-                                    NeonPurple.copy(alpha = 0.4f)
-                                )
+                                colors = if (isPresentKshanOpen) {
+                                    listOf(goldAccent, NeonCyan)
+                                } else {
+                                    listOf(
+                                        NeonCyan.copy(alpha = 0.75f),
+                                        goldAccent.copy(alpha = 0.45f),
+                                        NeonPurple.copy(alpha = 0.45f)
+                                    )
+                                }
                             ),
                             shape = RoundedCornerShape(14.dp)
                         ),
@@ -253,7 +319,7 @@ fun KshanHeader() {
                         colors = listOf(
                             Color.White,
                             Color(0xFFD8FAFF),
-                            NeonCyan
+                            if (isPresentKshanOpen) goldAccent else NeonCyan
                         )
                     )
 
@@ -279,14 +345,23 @@ fun KshanHeader() {
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column {
-                    Text(
-                        text = "Kshan",
-                        fontFamily = ComicNeueFontFamily,
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.3).sp,
-                        color = TextPrimary
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Kshan",
+                            fontFamily = ComicNeueFontFamily,
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            letterSpacing = (-0.3).sp,
+                            color = TextPrimary
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "• वर्तमान",
+                            fontFamily = KalamFont,
+                            fontSize = 11.5.sp,
+                            color = goldAccent.copy(alpha = 0.88f)
+                        )
+                    }
                     Text(
                         text = "Precision Date Companion",
                         fontFamily = ComicNeueFontFamily,
@@ -296,19 +371,49 @@ fun KshanHeader() {
                 }
             }
 
+            // (2) Interactive "✦ Vision" Developer Showcase Pill (replaces static "Pro" badge)
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(NeonCyan.copy(alpha = 0.15f))
-                    .border(1.dp, NeonCyan.copy(alpha = 0.4f), RoundedCornerShape(50))
-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                    .background(
+                        Brush.horizontalGradient(
+                            colors = listOf(
+                                goldAccent.copy(alpha = 0.16f),
+                                NeonCyan.copy(alpha = 0.16f)
+                            )
+                        )
+                    )
+                    .border(
+                        width = 1.dp,
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(
+                                goldAccent.copy(alpha = 0.7f),
+                                NeonCyan.copy(alpha = 0.6f)
+                            )
+                        ),
+                        shape = RoundedCornerShape(50)
+                    )
+                    .clickable {
+                        try {
+                            view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        } catch (e: Exception) {
+                            Log.w("KshanHeader", "Haptic feedback unavailable", e)
+                        }
+                        onVisionClick()
+                    }
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                    .testTag("kshan_vision_pill_button")
             ) {
                 Text(
-                    text = "Pro",
+                    text = "✦ Vision",
                     fontFamily = ComicNeueFontFamily,
-                    fontSize = 11.sp,
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.Bold,
-                    color = NeonCyan
+                    style = TextStyle(
+                        brush = Brush.horizontalGradient(
+                            colors = listOf(goldAccent, Color.White, NeonCyan)
+                        )
+                    )
                 )
             }
         }

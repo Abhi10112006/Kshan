@@ -48,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -69,9 +70,11 @@ import com.abhi.kshan.engine.TimeEngine
 import com.abhi.kshan.ui.components.ConnectedDateCards
 import com.abhi.kshan.ui.components.CyberDatePickerDialog
 import com.abhi.kshan.ui.components.FrostedGlassCard
+import com.abhi.kshan.ui.components.MechanicalScrubRuler
 import com.abhi.kshan.ui.components.ModernCapsuleChip
 import com.abhi.kshan.ui.components.ModernPillButton
 import com.abhi.kshan.ui.components.ModernToggle
+import com.abhi.kshan.ui.components.TemporalConstellationHero
 import com.abhi.kshan.ui.theme.ComicNeueFontFamily
 import com.abhi.kshan.ui.theme.CourierPrimeFontFamily
 import com.abhi.kshan.ui.theme.NeonCyan
@@ -100,6 +103,8 @@ fun DateMathScreen(
     val view = LocalView.current
     var showBasePicker by remember { mutableStateOf(false) }
     var showDaysInputDialog by remember { mutableStateOf(false) }
+    // 0 = Scrub Base Date, 1 = Scrub Days to Shift (defaults to Days to Shift)
+    var scrubTargetIndex by remember { mutableIntStateOf(1) }
     val scrollState = rememberScrollState()
 
     val presets = remember {
@@ -113,6 +118,12 @@ fun DateMathScreen(
     }
 
     val activeAccent = if (uiState.mathIsAdd) NeonCyan else NeonPink
+    val scrubAccent = if (scrubTargetIndex == 0) NeonPurple else activeAccent
+    val scrubReadout = if (scrubTargetIndex == 0) {
+        uiState.mathBase.format(TimeEngine.SHORT_DATE_FORMATTER)
+    } else {
+        "${if (uiState.mathIsAdd) "+" else "−"}${uiState.mathDays} days"
+    }
 
     fun hapticTick() {
         try {
@@ -126,7 +137,7 @@ fun DateMathScreen(
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // 1. Connected Starting Date & Days to Shift with IntrinsicSize.Max equal heights
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
@@ -141,12 +152,13 @@ fun DateMathScreen(
                             .fillMaxHeight()
                             .clickable {
                                 hapticTick()
+                                scrubTargetIndex = 0
                                 onHudInteraction("Tap to select your base starting date.")
                                 showBasePicker = true
                             }
                             .testTag("math_base_button"),
                         borderColor = NeonPurple,
-                        glowAlpha = 0.5f,
+                        glowAlpha = if (scrubTargetIndex == 0) 0.65f else 0.4f,
                         cornerRadius = 24.dp
                     ) {
                         Column(
@@ -204,7 +216,7 @@ fun DateMathScreen(
                             .fillMaxWidth()
                             .fillMaxHeight(),
                         borderColor = activeAccent,
-                        glowAlpha = 0.5f,
+                        glowAlpha = if (scrubTargetIndex == 1) 0.65f else 0.4f,
                         cornerRadius = 24.dp
                     ) {
                         Column(
@@ -231,6 +243,7 @@ fun DateMathScreen(
                                         .size(14.dp)
                                         .clickable {
                                             hapticTick()
+                                            scrubTargetIndex = 1
                                             showDaysInputDialog = true
                                         }
                                 )
@@ -251,6 +264,7 @@ fun DateMathScreen(
                                         .border(1.dp, activeAccent.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
                                         .clickable {
                                             hapticTick()
+                                            scrubTargetIndex = 1
                                             onHudInteraction("Enter custom days to shift.")
                                             showDaysInputDialog = true
                                         }
@@ -311,9 +325,37 @@ fun DateMathScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // 2. Preset Chips with Edge-to-Edge scrolling (PaddingValues horizontal = 24.dp)
+        // 2. Tactile Mechanical Time Wheel / Scrubbing Ruler
+        Box(modifier = Modifier.padding(horizontal = 22.dp)) {
+            MechanicalScrubRuler(
+                targetOptions = listOf("Base Date", "Days to Shift"),
+                selectedTargetIndex = scrubTargetIndex,
+                onTargetSelected = { idx ->
+                    scrubTargetIndex = idx
+                    onHudInteraction(
+                        if (idx == 0) "Crown Scrubber focused on Base Date."
+                        else "Crown Scrubber focused on Days to Shift."
+                    )
+                },
+                activeValueReadout = scrubReadout,
+                accentColor = scrubAccent,
+                onStepDelta = { deltaSteps ->
+                    if (scrubTargetIndex == 0) {
+                        onBaseChanged(uiState.mathBase.plusDays(deltaSteps.toLong()))
+                    } else {
+                        val nextDays = (uiState.mathDays + deltaSteps).coerceIn(0L, 9999L)
+                        onDaysChanged(nextDays)
+                    }
+                },
+                testTag = "math_mechanical_ruler"
+            )
+        }
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // 3. Preset Chips with Edge-to-Edge scrolling (PaddingValues horizontal = 24.dp)
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 24.dp),
@@ -328,9 +370,9 @@ fun DateMathScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // 3. Directional Shift Buttons: Earlier (-) vs Later (+)
+        // 4. Directional Shift Buttons: Earlier (-) vs Later (+)
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -360,9 +402,9 @@ fun DateMathScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
-        // 4. Skip Weekends Switch Card
+        // 5. Skip Weekends Switch Card
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             FrostedGlassCard(
                 modifier = Modifier
@@ -426,92 +468,99 @@ fun DateMathScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
-        // 5. Ambient Hero Result (Glowing radial aura and clean capsule subtitle)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 22.dp),
-            contentAlignment = Alignment.Center
+        // 6. Temporal Constellation Hero (Visual Timeline Arc + Result Date + 3-Card Human Rhythm Carousel)
+        TemporalConstellationHero(
+            startDate = uiState.mathBase,
+            endDate = uiState.mathArrivalDate,
+            daysCount = uiState.mathDays,
+            accentColor = activeAccent
         ) {
             Box(
                 modifier = Modifier
-                    .size(240.dp)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                activeAccent.copy(alpha = 0.16f),
-                                activeAccent.copy(alpha = 0.05f),
-                                Color.Transparent
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(210.dp)
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    activeAccent.copy(alpha = 0.16f),
+                                    activeAccent.copy(alpha = 0.05f),
+                                    Color.Transparent
+                                )
                             )
                         )
-                    )
-            )
-
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = "RESULT DATE",
-                    fontFamily = ComicNeueFontFamily,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 2.sp,
-                    color = TextMuted
                 )
 
-                Spacer(modifier = Modifier.height(6.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "RESULT DATE",
+                        fontFamily = ComicNeueFontFamily,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 2.sp,
+                        color = TextMuted
+                    )
 
-                AnimatedContent(
-                    targetState = uiState.mathArrivalDate,
-                    transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(200)) },
-                    label = "arrival_anim"
-                ) { arrivalDate ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = arrivalDate.format(TimeEngine.FULL_DATE_FORMATTER),
-                            fontFamily = CourierPrimeFontFamily,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.testTag("math_calculated_arrival")
-                        )
+                    Spacer(modifier = Modifier.height(6.dp))
 
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        val shiftDesc = if (uiState.mathExcludeWeekends) {
-                            "${uiState.mathDays} working days ${if (uiState.mathIsAdd) "later" else "earlier"}"
-                        } else {
-                            "${uiState.mathDays} days ${if (uiState.mathIsAdd) "later" else "earlier"}"
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(50))
-                                .background(Color(0xFF0F172A).copy(alpha = 0.9f))
-                                .border(
-                                    1.dp,
-                                    Brush.horizontalGradient(
-                                        listOf(activeAccent.copy(0.5f), Color.White.copy(0.2f), activeAccent.copy(0.4f))
-                                    ),
-                                    RoundedCornerShape(50)
-                                )
-                                .padding(horizontal = 16.dp, vertical = 7.dp)
-                        ) {
+                    AnimatedContent(
+                        targetState = uiState.mathArrivalDate,
+                        transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(200)) },
+                        label = "arrival_anim"
+                    ) { arrivalDate ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = shiftDesc,
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = activeAccent
+                                text = arrivalDate.format(TimeEngine.FULL_DATE_FORMATTER),
+                                fontFamily = CourierPrimeFontFamily,
+                                fontSize = 23.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.testTag("math_calculated_arrival")
                             )
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            val shiftDesc = if (uiState.mathExcludeWeekends) {
+                                "${uiState.mathDays} working days ${if (uiState.mathIsAdd) "later" else "earlier"}"
+                            } else {
+                                "${uiState.mathDays} days ${if (uiState.mathIsAdd) "later" else "earlier"}"
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(Color(0xFF0F172A).copy(alpha = 0.9f))
+                                    .border(
+                                        1.dp,
+                                        Brush.horizontalGradient(
+                                            listOf(activeAccent.copy(0.5f), Color.White.copy(0.2f), activeAccent.copy(0.4f))
+                                        ),
+                                        RoundedCornerShape(50)
+                                    )
+                                    .padding(horizontal = 16.dp, vertical = 7.dp)
+                            ) {
+                                Text(
+                                    text = shiftDesc,
+                                    fontFamily = ComicNeueFontFamily,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = activeAccent
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // 6. 120.dp Bottom Spacer to prevent navigation dock collision
+        // 7. 120.dp Bottom Spacer to prevent navigation dock collision
         Spacer(modifier = Modifier.height(120.dp))
     }
 

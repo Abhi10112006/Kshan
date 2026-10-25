@@ -1,6 +1,6 @@
 {
-  "summary":  "Revised implementation plan incorporating all 5 gesture, state-derivation, recurring 365-dot projection, floating overlay, and '✦ Vision' pill fixes.",
-  "updatedAt":  "2026-10-24T09:26:17.542996743Z",
+  "summary":  "Revised implementation plan incorporating the 5 final engineering review items: non-destructive Room MIGRATION_1_2, future-safe MonthDay.atYear() rollover with repeatsYearly passed across all call sites, exact 3-metric strip math using calculateBusinessDaysBetween, Crown Scrubber 0..9999 boundary clamping + spring snap-back + TalkBack semantics, and MY_PACKAGE_REPLACED widget handling, font/file cleanup, and comprehensive JUnit/Robolectric tests.",
+  "updatedAt":  "2026-10-25T09:56:18.012860854Z",
   "requestFeedback":  true,
   "userFacing":  true
 }

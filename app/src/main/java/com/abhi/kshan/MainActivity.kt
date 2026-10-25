@@ -46,7 +46,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,16 +62,16 @@ import com.abhi.kshan.ui.screens.CountdownScreen
 import com.abhi.kshan.ui.screens.DateMathScreen
 import com.abhi.kshan.ui.screens.DifferenceScreen
 import com.abhi.kshan.ui.screens.WidgetsDashboardScreen
-import com.abhi.kshan.ui.theme.ComicNeueFontFamily
+import com.abhi.kshan.ui.theme.IceCyan
 import com.abhi.kshan.ui.theme.KalamFont
 import com.abhi.kshan.ui.theme.MyApplicationTheme
-import com.abhi.kshan.ui.theme.NeonCyan
-import com.abhi.kshan.ui.theme.NeonPurple
+import com.abhi.kshan.ui.theme.ObsidianGlass
 import com.abhi.kshan.ui.theme.SpaceBlack
-import com.abhi.kshan.ui.theme.SpaceCard
-import com.abhi.kshan.ui.theme.SpaceDark
+import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
+import com.abhi.kshan.ui.theme.TitaniumHairline
+import com.abhi.kshan.ui.theme.WarmChampagne
 import com.abhi.kshan.viewmodel.ChronoTab
 import com.abhi.kshan.viewmodel.ChronoViewModel
 import kotlinx.coroutines.delay
@@ -154,7 +153,7 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                     .padding(top = innerPadding.calculateTopPadding())
                     .statusBarsPadding()
             ) {
-                // Top Header Branding: Interactive Kalam Devanagari Squircle ("वर्तमान क्षण") & "✦ Vision" Pill
+                // Top Header Branding: Interactive Kalam Devanagari Squircle ("क्षण") & Titanium/Champagne "✦ Vision" Pill
                 KshanHeader(
                     isPresentKshanOpen = showPresentKshanOverlay,
                     onSquircleClick = {
@@ -166,7 +165,7 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                     }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // Direction-Aware Fluid Page Transitions
                 Box(
@@ -211,8 +210,8 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                                 savedEvents = savedEvents,
                                 onPinEvent = { viewModel.pinEvent(it) },
                                 onDeleteEvent = { viewModel.deleteEvent(it) },
-                                onAddEvent = { title, date, cat ->
-                                    viewModel.addNewEvent(title, date, cat)
+                                onAddEvent = { title, date, cat, repeatsYearly ->
+                                    viewModel.addNewEvent(title, date, cat, repeatsYearly)
                                 },
                                 onTriggerCelebration = { viewModel.triggerManualCelebration() },
                                 onClearCelebration = { viewModel.clearCelebration() },
@@ -233,7 +232,7 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
             }
         }
 
-        // 3. Floating "Present Moment (वर्तमान क्षण)" Overlay Card (zIndex = 10f so it never squishes layout)
+        // 3. Floating "Present Moment (क्षण)" Overlay Card (zIndex = 10f so it never squishes layout)
         PresentKshanDropdownCard(
             visible = showPresentKshanOverlay,
             telemetry = uiState.presentKshanTelemetry,
@@ -259,7 +258,6 @@ fun KshanHeader(
     onVisionClick: () -> Unit = {}
 ) {
     val view = LocalView.current
-    val goldAccent = Color(0xFFFFD700)
 
     Column(
         modifier = Modifier
@@ -285,51 +283,26 @@ fun KshanHeader(
                     }
                     .testTag("kshan_header_squircle_button")
             ) {
-                // (1) Interactive Frosted-Glass Squircle ("वर्तमान क्षण")
+                // (1) Interactive Frosted-Glass Squircle ("क्षण")
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    SpaceCard.copy(alpha = 0.95f),
-                                    SpaceDark.copy(alpha = 0.98f)
-                                )
-                            )
-                        )
+                        .size(44.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(ObsidianGlass)
                         .border(
-                            width = 1.3.dp,
-                            brush = Brush.verticalGradient(
-                                colors = if (isPresentKshanOpen) {
-                                    listOf(goldAccent, NeonCyan)
-                                } else {
-                                    listOf(
-                                        NeonCyan.copy(alpha = 0.75f),
-                                        goldAccent.copy(alpha = 0.45f),
-                                        NeonPurple.copy(alpha = 0.45f)
-                                    )
-                                }
-                            ),
-                            shape = RoundedCornerShape(14.dp)
+                            width = 0.8.dp,
+                            color = if (isPresentKshanOpen) WarmChampagne.copy(alpha = 0.65f) else TitaniumHairline,
+                            shape = RoundedCornerShape(13.dp)
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    val textGradient = Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White,
-                            Color(0xFFD8FAFF),
-                            if (isPresentKshanOpen) goldAccent else NeonCyan
-                        )
-                    )
-
                     Text(
                         text = "क्षण",
                         fontFamily = KalamFont,
-                        fontSize = 26.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        style = TextStyle(brush = textGradient),
-                        modifier = Modifier.offset(y = (-2).dp)
+                        color = if (isPresentKshanOpen) WarmChampagne else TextPrimary,
+                        modifier = Modifier.offset(y = (-1).dp)
                     )
                 }
 
@@ -337,60 +310,39 @@ fun KshanHeader(
 
                 Box(
                     modifier = Modifier
-                        .width(1.dp)
-                        .height(26.dp)
-                        .background(Color.White.copy(alpha = 0.15f))
+                        .width(0.8.dp)
+                        .height(24.dp)
+                        .background(TitaniumHairline)
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))
 
                 Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = "Kshan",
-                            fontFamily = ComicNeueFontFamily,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = (-0.3).sp,
-                            color = TextPrimary
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "• वर्तमान",
-                            fontFamily = KalamFont,
-                            fontSize = 11.5.sp,
-                            color = goldAccent.copy(alpha = 0.88f)
-                        )
-                    }
+                    Text(
+                        text = "Kshan",
+                        fontFamily = SpaceGroteskFontFamily,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = (-0.3).sp,
+                        color = TextPrimary
+                    )
                     Text(
                         text = "Precision Date Companion",
-                        fontFamily = ComicNeueFontFamily,
-                        fontSize = 12.sp,
+                        fontFamily = SpaceGroteskFontFamily,
+                        fontSize = 11.5.sp,
                         color = TextMuted
                     )
                 }
             }
 
-            // (2) Interactive "✦ Vision" Developer Showcase Pill (replaces static "Pro" badge)
+            // (2) Subtle Titanium & Champagne "✦ Vision" Developer Showcase Pill
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                goldAccent.copy(alpha = 0.16f),
-                                NeonCyan.copy(alpha = 0.16f)
-                            )
-                        )
-                    )
+                    .background(ObsidianGlass)
                     .border(
-                        width = 1.dp,
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(
-                                goldAccent.copy(alpha = 0.7f),
-                                NeonCyan.copy(alpha = 0.6f)
-                            )
-                        ),
+                        width = 0.8.dp,
+                        color = WarmChampagne.copy(alpha = 0.38f),
                         shape = RoundedCornerShape(50)
                     )
                     .clickable {
@@ -401,19 +353,15 @@ fun KshanHeader(
                         }
                         onVisionClick()
                     }
-                    .padding(horizontal = 12.dp, vertical = 5.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
                     .testTag("kshan_vision_pill_button")
             ) {
                 Text(
                     text = "✦ Vision",
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    style = TextStyle(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(goldAccent, Color.White, NeonCyan)
-                        )
-                    )
+                    fontWeight = FontWeight.SemiBold,
+                    color = WarmChampagne
                 )
             }
         }

@@ -74,6 +74,7 @@ class ChronoWidgetProvider : AppWidgetProvider() {
             Intent.ACTION_TIME_CHANGED, // "android.intent.action.TIME_SET"
             Intent.ACTION_TIMEZONE_CHANGED,
             Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
             ACTION_BOUNDARY_REFRESH -> {
                 val appWidgetManager = AppWidgetManager.getInstance(context)
                 val componentName = ComponentName(context, ChronoWidgetProvider::class.java)
@@ -102,7 +103,14 @@ class ChronoWidgetProvider : AppWidgetProvider() {
             var targetZdt: ZonedDateTime? = null
             if (activeEvent != null) {
                 targetZdt = try {
-                    ZonedDateTime.parse(activeEvent.targetIsoString)
+                    val rawZdt = ZonedDateTime.parse(activeEvent.targetIsoString)
+                    val (effectiveZdt, _) = TimeEngine.resolveEffectiveTarget(
+                        now = now,
+                        raw = rawZdt,
+                        repeatsYearly = activeEvent.repeatsYearly,
+                        isCountUpMode = false
+                    )
+                    effectiveZdt
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to parse widget event ISO string: ${activeEvent.targetIsoString}", e)
                     now.plusDays(30)

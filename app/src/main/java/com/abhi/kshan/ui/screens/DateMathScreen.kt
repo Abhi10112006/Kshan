@@ -75,18 +75,17 @@ import com.abhi.kshan.ui.components.ModernCapsuleChip
 import com.abhi.kshan.ui.components.ModernPillButton
 import com.abhi.kshan.ui.components.ModernToggle
 import com.abhi.kshan.ui.components.TemporalConstellationHero
-import com.abhi.kshan.ui.theme.ComicNeueFontFamily
 import com.abhi.kshan.ui.theme.CourierPrimeFontFamily
-import com.abhi.kshan.ui.theme.NeonCyan
-import com.abhi.kshan.ui.theme.NeonPink
-import com.abhi.kshan.ui.theme.NeonPurple
+import com.abhi.kshan.ui.theme.IceCyan
+import com.abhi.kshan.ui.theme.ObsidianGlass
 import com.abhi.kshan.ui.theme.SpaceCard
-import com.abhi.kshan.ui.theme.SpaceCardBorder
 import com.abhi.kshan.ui.theme.SpaceDark
-import com.abhi.kshan.ui.theme.TabularMonoFontFamily
+import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
+import com.abhi.kshan.ui.theme.TitaniumHairline
+import com.abhi.kshan.ui.theme.WarmChampagne
 import com.abhi.kshan.viewmodel.ChronoUiState
 import java.time.LocalDate
 
@@ -117,8 +116,7 @@ fun DateMathScreen(
         )
     }
 
-    val activeAccent = if (uiState.mathIsAdd) NeonCyan else NeonPink
-    val scrubAccent = if (scrubTargetIndex == 0) NeonPurple else activeAccent
+    val activeAccent = if (uiState.mathIsAdd) IceCyan else WarmChampagne
     val scrubReadout = if (scrubTargetIndex == 0) {
         uiState.mathBase.format(TimeEngine.SHORT_DATE_FORMATTER)
     } else {
@@ -128,7 +126,9 @@ fun DateMathScreen(
     fun hapticTick() {
         try {
             view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-        } catch (e: Exception) { Log.w("DateMathScreen", "Haptic feedback unavailable", e) }
+        } catch (e: Exception) {
+            Log.w("DateMathScreen", "Haptic feedback unavailable", e)
+        }
     }
 
     Column(
@@ -137,15 +137,16 @@ fun DateMathScreen(
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // 1. Connected Starting Date & Days to Shift with IntrinsicSize.Max equal heights
+        // 1. Connected Base Date & Days to Shift Cards (Only active scrub target gets subtle Ice Cyan border)
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             ConnectedDateCards(
                 modifier = Modifier.height(IntrinsicSize.Max),
                 connectorLabel = if (uiState.mathIsAdd) "+" else "−",
                 accentColor = activeAccent,
                 startContent = {
+                    val isBaseSelected = scrubTargetIndex == 0
                     FrostedGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -157,9 +158,9 @@ fun DateMathScreen(
                                 showBasePicker = true
                             }
                             .testTag("math_base_button"),
-                        borderColor = NeonPurple,
-                        glowAlpha = if (scrubTargetIndex == 0) 0.65f else 0.4f,
-                        cornerRadius = 24.dp
+                        borderColor = if (isBaseSelected) IceCyan else TitaniumHairline,
+                        glowAlpha = if (isBaseSelected) 0.65f else 0.2f,
+                        cornerRadius = 22.dp
                     ) {
                         Column(
                             modifier = Modifier.fillMaxHeight(),
@@ -168,29 +169,32 @@ fun DateMathScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(30.dp)
                                         .clip(CircleShape)
-                                        .background(NeonPurple.copy(alpha = 0.15f)),
+                                        .background(
+                                            if (isBaseSelected) IceCyan.copy(alpha = 0.14f)
+                                            else SpaceCard
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CalendarToday,
                                         contentDescription = null,
-                                        tint = NeonPurple,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = if (isBaseSelected) IceCyan else TextSecondary,
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = "Base Date",
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = NeonPurple
+                                    color = if (isBaseSelected) IceCyan else TextSecondary
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             Column {
                                 Text(
@@ -202,7 +206,7 @@ fun DateMathScreen(
                                 )
                                 Text(
                                     text = uiState.mathBase.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 12.sp,
                                     color = TextSecondary
                                 )
@@ -211,13 +215,14 @@ fun DateMathScreen(
                     }
                 },
                 endContent = {
+                    val isShiftSelected = scrubTargetIndex == 1
                     FrostedGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .fillMaxHeight(),
-                        borderColor = activeAccent,
-                        glowAlpha = if (scrubTargetIndex == 1) 0.65f else 0.4f,
-                        cornerRadius = 24.dp
+                        borderColor = if (isShiftSelected) IceCyan else TitaniumHairline,
+                        glowAlpha = if (isShiftSelected) 0.65f else 0.2f,
+                        cornerRadius = 22.dp
                     ) {
                         Column(
                             modifier = Modifier.fillMaxHeight(),
@@ -230,15 +235,15 @@ fun DateMathScreen(
                             ) {
                                 Text(
                                     text = "Days to Shift",
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = activeAccent
+                                    color = if (isShiftSelected) IceCyan else TextSecondary
                                 )
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = "Type custom days",
-                                    tint = activeAccent.copy(alpha = 0.7f),
+                                    tint = TextSecondary,
                                     modifier = Modifier
                                         .size(14.dp)
                                         .clickable {
@@ -249,19 +254,19 @@ fun DateMathScreen(
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(10.dp))
 
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                // Tappable Typewriter Number Pill to open Direct Number Input Dialog
+                                // Tappable Typewriter Number Pill
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(activeAccent.copy(alpha = 0.12f))
-                                        .border(1.dp, activeAccent.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                                        .background(Color.White.copy(alpha = 0.05f))
+                                        .border(0.8.dp, TitaniumHairline, RoundedCornerShape(10.dp))
                                         .clickable {
                                             hapticTick()
                                             scrubTargetIndex = 1
@@ -273,7 +278,7 @@ fun DateMathScreen(
                                     Text(
                                         text = "${uiState.mathDays}",
                                         fontFamily = CourierPrimeFontFamily,
-                                        fontSize = 22.sp,
+                                        fontSize = 21.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = TextPrimary,
                                         modifier = Modifier.testTag("math_days_value")
@@ -283,9 +288,10 @@ fun DateMathScreen(
                                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(30.dp)
                                             .clip(CircleShape)
-                                            .background(SpaceCard)
+                                            .background(Color.White.copy(alpha = 0.06f))
+                                            .border(0.8.dp, TitaniumHairline, CircleShape)
                                             .clickable {
                                                 hapticTick()
                                                 if (uiState.mathDays > 0) onDaysChanged(uiState.mathDays - 1)
@@ -296,17 +302,18 @@ fun DateMathScreen(
                                             imageVector = Icons.Default.Remove,
                                             contentDescription = "Minus",
                                             tint = TextPrimary,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
                                     }
                                     Box(
                                         modifier = Modifier
-                                            .size(32.dp)
+                                            .size(30.dp)
                                             .clip(CircleShape)
-                                            .background(SpaceCard)
+                                            .background(Color.White.copy(alpha = 0.06f))
+                                            .border(0.8.dp, TitaniumHairline, CircleShape)
                                             .clickable {
                                                 hapticTick()
-                                                onDaysChanged(uiState.mathDays + 1)
+                                                if (uiState.mathDays < 9999L) onDaysChanged(uiState.mathDays + 1)
                                             },
                                         contentAlignment = Alignment.Center
                                     ) {
@@ -314,7 +321,7 @@ fun DateMathScreen(
                                             imageVector = Icons.Default.Add,
                                             contentDescription = "Plus",
                                             tint = TextPrimary,
-                                            modifier = Modifier.size(16.dp)
+                                            modifier = Modifier.size(15.dp)
                                         )
                                     }
                                 }
@@ -325,12 +332,12 @@ fun DateMathScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 2. Tactile Mechanical Time Wheel / Scrubbing Ruler
+        // 2. Compact 52.dp Frameless Crown Scrubber (with 0..9999 hard boundary clamping & spring snap-back)
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             MechanicalScrubRuler(
-                targetOptions = listOf("Base Date", "Days to Shift"),
+                targetOptions = listOf("Base", "Shift"),
                 selectedTargetIndex = scrubTargetIndex,
                 onTargetSelected = { idx ->
                     scrubTargetIndex = idx
@@ -340,7 +347,10 @@ fun DateMathScreen(
                     )
                 },
                 activeValueReadout = scrubReadout,
-                accentColor = scrubAccent,
+                accentColor = IceCyan,
+                currentNumericValue = if (scrubTargetIndex == 1) uiState.mathDays else null,
+                minValue = if (scrubTargetIndex == 1) 0L else null,
+                maxValue = if (scrubTargetIndex == 1) 9999L else null,
                 onStepDelta = { deltaSteps ->
                     if (scrubTargetIndex == 0) {
                         onBaseChanged(uiState.mathBase.plusDays(deltaSteps.toLong()))
@@ -353,12 +363,12 @@ fun DateMathScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 3. Preset Chips with Edge-to-Edge scrolling (PaddingValues horizontal = 24.dp)
+        // 3. Preset Chips with Edge-to-Edge scrolling
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 24.dp),
+            contentPadding = PaddingValues(horizontal = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(presets) { (label, days) ->
@@ -370,20 +380,20 @@ fun DateMathScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 4. Directional Shift Buttons: Earlier (-) vs Later (+)
+        // 4. Directional Shift Buttons: Earlier (−) vs Later (+)
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 ModernPillButton(
                     text = "Earlier (−)",
                     icon = Icons.AutoMirrored.Filled.ArrowBack,
                     onClick = { onOperationChanged(false) },
                     isPrimary = !uiState.mathIsAdd,
-                    accentColor = NeonPink,
+                    accentColor = WarmChampagne,
                     modifier = Modifier
                         .weight(1f)
                         .testTag("math_btn_sub")
@@ -394,7 +404,7 @@ fun DateMathScreen(
                     icon = Icons.AutoMirrored.Filled.ArrowForward,
                     onClick = { onOperationChanged(true) },
                     isPrimary = uiState.mathIsAdd,
-                    accentColor = NeonCyan,
+                    accentColor = IceCyan,
                     modifier = Modifier
                         .weight(1f)
                         .testTag("math_btn_add")
@@ -402,7 +412,7 @@ fun DateMathScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // 5. Skip Weekends Switch Card
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
@@ -414,8 +424,8 @@ fun DateMathScreen(
                         onExcludeWeekendsChanged(!uiState.mathExcludeWeekends)
                     }
                     .testTag("math_weekends_toggle_row"),
-                borderColor = if (uiState.mathExcludeWeekends) NeonCyan else SpaceCardBorder,
-                glowAlpha = if (uiState.mathExcludeWeekends) 0.45f else 0.2f,
+                borderColor = if (uiState.mathExcludeWeekends) IceCyan else TitaniumHairline,
+                glowAlpha = if (uiState.mathExcludeWeekends) 0.6f else 0.2f,
                 cornerRadius = 20.dp
             ) {
                 Row(
@@ -429,30 +439,30 @@ fun DateMathScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(if (uiState.mathExcludeWeekends) NeonCyan.copy(alpha = 0.2f) else SpaceCard),
+                                .background(if (uiState.mathExcludeWeekends) IceCyan.copy(alpha = 0.16f) else SpaceCard),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.WorkHistory,
                                 contentDescription = null,
-                                tint = if (uiState.mathExcludeWeekends) NeonCyan else TextMuted,
-                                modifier = Modifier.size(18.dp)
+                                tint = if (uiState.mathExcludeWeekends) IceCyan else TextMuted,
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
                                 text = "Skip Weekends",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontFamily = SpaceGroteskFontFamily,
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = TextPrimary
                             )
                             Text(
                                 text = "Counts working days only",
-                                fontFamily = ComicNeueFontFamily,
+                                fontFamily = SpaceGroteskFontFamily,
                                 fontSize = 12.sp,
                                 color = TextMuted
                             )
@@ -468,9 +478,9 @@ fun DateMathScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // 6. Temporal Constellation Hero (Visual Timeline Arc + Result Date + 3-Card Human Rhythm Carousel)
+        // 6. Clean Hero Result Date + Single-Line 3-Metric Strip ("2w 6d • 14 Workdays • 480 Hours")
         TemporalConstellationHero(
             startDate = uiState.mathBase,
             endDate = uiState.mathArrivalDate,
@@ -485,12 +495,12 @@ fun DateMathScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(210.dp)
+                        .size(190.dp)
                         .background(
                             Brush.radialGradient(
                                 colors = listOf(
-                                    activeAccent.copy(alpha = 0.16f),
-                                    activeAccent.copy(alpha = 0.05f),
+                                    IceCyan.copy(alpha = 0.10f),
+                                    Color.White.copy(alpha = 0.03f),
                                     Color.Transparent
                                 )
                             )
@@ -500,9 +510,9 @@ fun DateMathScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "RESULT DATE",
-                        fontFamily = ComicNeueFontFamily,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontFamily = SpaceGroteskFontFamily,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
                         letterSpacing = 2.sp,
                         color = TextMuted
                     )
@@ -511,21 +521,21 @@ fun DateMathScreen(
 
                     AnimatedContent(
                         targetState = uiState.mathArrivalDate,
-                        transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(200)) },
+                        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(180)) },
                         label = "arrival_anim"
                     ) { arrivalDate ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = arrivalDate.format(TimeEngine.FULL_DATE_FORMATTER),
                                 fontFamily = CourierPrimeFontFamily,
-                                fontSize = 23.sp,
+                                fontSize = 22.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary,
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.testTag("math_calculated_arrival")
                             )
 
-                            Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
 
                             val shiftDesc = if (uiState.mathExcludeWeekends) {
                                 "${uiState.mathDays} working days ${if (uiState.mathIsAdd) "later" else "earlier"}"
@@ -536,19 +546,17 @@ fun DateMathScreen(
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(50))
-                                    .background(Color(0xFF0F172A).copy(alpha = 0.9f))
+                                    .background(ObsidianGlass)
                                     .border(
-                                        1.dp,
-                                        Brush.horizontalGradient(
-                                            listOf(activeAccent.copy(0.5f), Color.White.copy(0.2f), activeAccent.copy(0.4f))
-                                        ),
+                                        0.8.dp,
+                                        TitaniumHairline,
                                         RoundedCornerShape(50)
                                     )
-                                    .padding(horizontal = 16.dp, vertical = 7.dp)
+                                    .padding(horizontal = 16.dp, vertical = 6.dp)
                             ) {
                                 Text(
                                     text = shiftDesc,
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = activeAccent
@@ -560,8 +568,8 @@ fun DateMathScreen(
             }
         }
 
-        // 7. 120.dp Bottom Spacer to prevent navigation dock collision
-        Spacer(modifier = Modifier.height(120.dp))
+        // 7. Bottom Spacer for Floating Glass Dock
+        Spacer(modifier = Modifier.height(110.dp))
     }
 
     if (showBasePicker) {
@@ -599,13 +607,13 @@ private fun TypewriterNumberInputDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = SpaceDark,
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(24.dp),
         title = {
             Text(
                 text = "Enter Days to Shift",
-                fontFamily = ComicNeueFontFamily,
+                fontFamily = SpaceGroteskFontFamily,
                 fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.SemiBold,
                 color = TextPrimary
             )
         },
@@ -613,7 +621,7 @@ private fun TypewriterNumberInputDialog(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
                     text = "Type any number of days (0 – 9999):",
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 13.sp,
                     color = TextSecondary
                 )
@@ -643,7 +651,7 @@ private fun TypewriterNumberInputDialog(
                     ),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accentColor,
-                        unfocusedBorderColor = SpaceCardBorder,
+                        unfocusedBorderColor = TitaniumHairline,
                         focusedTextColor = accentColor,
                         unfocusedTextColor = TextPrimary
                     ),
@@ -653,7 +661,6 @@ private fun TypewriterNumberInputDialog(
                         .testTag("math_direct_days_input")
                 )
 
-                // Quick Typewriter Jumps inside dialog
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -664,11 +671,13 @@ private fun TypewriterNumberInputDialog(
                                 .weight(1f)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(SpaceCard)
-                                .border(1.dp, accentColor.copy(alpha = 0.4f), RoundedCornerShape(10.dp))
+                                .border(0.8.dp, TitaniumHairline, RoundedCornerShape(10.dp))
                                 .clickable {
                                     try {
                                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                                    } catch (e: Exception) { Log.w("DateMathScreen", "Haptic feedback unavailable", e) }
+                                    } catch (e: Exception) {
+                                        Log.w("DateMathScreen", "Haptic feedback unavailable", e)
+                                    }
                                     textValue = preset.toString()
                                 }
                                 .padding(vertical = 8.dp),
@@ -691,15 +700,17 @@ private fun TypewriterNumberInputDialog(
                 onClick = {
                     try {
                         view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                    } catch (e: Exception) { Log.w("DateMathScreen", "Haptic feedback unavailable", e) }
+                    } catch (e: Exception) {
+                        Log.w("DateMathScreen", "Haptic feedback unavailable", e)
+                    }
                     val parsed = textValue.toLongOrNull()?.coerceIn(0L, 9999L) ?: initialDays
                     onConfirm(parsed)
                 }
             ) {
                 Text(
                     text = "Apply",
-                    fontFamily = ComicNeueFontFamily,
-                    fontWeight = FontWeight.Bold,
+                    fontFamily = SpaceGroteskFontFamily,
+                    fontWeight = FontWeight.SemiBold,
                     color = accentColor
                 )
             }
@@ -709,13 +720,15 @@ private fun TypewriterNumberInputDialog(
                 onClick = {
                     try {
                         view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                    } catch (e: Exception) { Log.w("DateMathScreen", "Haptic feedback unavailable", e) }
+                    } catch (e: Exception) {
+                        Log.w("DateMathScreen", "Haptic feedback unavailable", e)
+                    }
                     onDismiss()
                 }
             ) {
                 Text(
                     text = "Cancel",
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     color = TextMuted
                 )
             }

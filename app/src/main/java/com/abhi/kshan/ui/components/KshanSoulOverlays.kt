@@ -8,7 +8,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
@@ -23,7 +22,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +34,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -60,7 +59,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -74,7 +72,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -88,34 +85,28 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.abhi.kshan.engine.PresentKshanTelemetry
-import com.abhi.kshan.ui.theme.ComicNeueFontFamily
+import com.abhi.kshan.ui.theme.BrushedSilver
 import com.abhi.kshan.ui.theme.CourierPrimeFontFamily
+import com.abhi.kshan.ui.theme.IceCyan
 import com.abhi.kshan.ui.theme.KalamFont
-import com.abhi.kshan.ui.theme.NeonBlue
-import com.abhi.kshan.ui.theme.NeonCyan
-import com.abhi.kshan.ui.theme.NeonEmerald
-import com.abhi.kshan.ui.theme.NeonPink
-import com.abhi.kshan.ui.theme.NeonPurple
-import com.abhi.kshan.ui.theme.SpaceBlack
-import com.abhi.kshan.ui.theme.SpaceCard
-import com.abhi.kshan.ui.theme.SpaceCardBorder
+import com.abhi.kshan.ui.theme.ObsidianGlass
 import com.abhi.kshan.ui.theme.SpaceDark
+import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
+import com.abhi.kshan.ui.theme.TitaniumHairline
+import com.abhi.kshan.ui.theme.WarmChampagne
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
-private val GoldSolar = Color(0xFFFFD700)
-private val AmberWarm = Color(0xFFFFA000)
-
 /**
- * Floating "Present Moment (वर्तमान क्षण)" Overlay Card.
+ * Floating "Present Moment (क्षण)" Overlay Card.
  *
- * Rendered at `Modifier.zIndex(10f)` over a translucent tap-outside dismiss scrim so
- * expanding it never pushes or squishes the active screen layout underneath.
+ * Uses Warm Champagne (#E5C158) solar accents and quiet Titanium glass cards (#0A0E17 @ 85%)
+ * with `BackHandler` and `imePadding()` so the keyboard never obscures the note input.
  */
 @Composable
 fun PresentKshanDropdownCard(
@@ -143,12 +134,13 @@ fun PresentKshanDropdownCard(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.62f))
+                .background(Color.Black.copy(alpha = 0.65f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onDismiss
                 )
+                .imePadding()
                 .testTag("present_kshan_scrim")
         ) {
             AnimatedVisibility(
@@ -157,25 +149,25 @@ fun PresentKshanDropdownCard(
                     animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f),
                     initialOffsetY = { -it / 2 }
                 ) + scaleIn(
-                    initialScale = 0.94f,
+                    initialScale = 0.95f,
                     animationSpec = spring(dampingRatio = 0.78f, stiffness = 420f)
                 ) + fadeIn(tween(200)),
                 exit = slideOutVertically(
                     animationSpec = tween(180),
                     targetOffsetY = { -it / 2 }
-                ) + scaleOut(targetScale = 0.95f, animationSpec = tween(180)) + fadeOut(tween(160)),
+                ) + scaleOut(targetScale = 0.96f, animationSpec = tween(180)) + fadeOut(tween(160)),
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .statusBarsPadding()
-                    .padding(top = 68.dp, start = 18.dp, end = 18.dp)
+                    .padding(top = 66.dp, start = 18.dp, end = 18.dp)
             ) {
-                // Consume clicks inside the card so tapping the card doesn't trigger the scrim dismiss
                 FrostedGlassCard(
-                    borderColor = GoldSolar,
+                    borderColor = WarmChampagne,
                     glowAlpha = 0.6f,
-                    cornerRadius = 26.dp,
+                    cornerRadius = 24.dp,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -187,7 +179,7 @@ fun PresentKshanDropdownCard(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Top Header: वर्तमान क्षण + Close
+                        // Top Header: क्षण + Present Kshan
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -198,29 +190,39 @@ fun PresentKshanDropdownCard(
                                     modifier = Modifier
                                         .size(38.dp)
                                         .clip(RoundedCornerShape(12.dp))
-                                        .background(GoldSolar.copy(alpha = 0.16f))
-                                        .border(1.dp, GoldSolar.copy(alpha = 0.55f), RoundedCornerShape(12.dp)),
+                                        .background(WarmChampagne.copy(alpha = 0.14f))
+                                        .border(0.8.dp, WarmChampagne.copy(alpha = 0.45f), RoundedCornerShape(12.dp)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.WbSunny,
                                         contentDescription = null,
-                                        tint = GoldSolar,
-                                        modifier = Modifier.size(20.dp)
+                                        tint = WarmChampagne,
+                                        modifier = Modifier.size(19.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
-                                    Text(
-                                        text = "वर्तमान क्षण • Present Kshan",
-                                        fontFamily = KalamFont,
-                                        fontSize = 18.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = GoldSolar
-                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            text = "क्षण",
+                                            fontFamily = KalamFont,
+                                            fontSize = 18.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = WarmChampagne
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = "• Present Kshan",
+                                            fontFamily = SpaceGroteskFontFamily,
+                                            fontSize = 16.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = TextPrimary
+                                        )
+                                    }
                                     Text(
                                         text = "Live Solar & Seasonal Pulse of Today",
-                                        fontFamily = ComicNeueFontFamily,
+                                        fontFamily = SpaceGroteskFontFamily,
                                         fontSize = 11.5.sp,
                                         color = TextSecondary
                                     )
@@ -247,13 +249,13 @@ fun PresentKshanDropdownCard(
                             }
                         }
 
-                        // Today Solar Elapsed Progress
+                        // Today Solar Elapsed Progress (Warm Champagne Bar)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(SpaceDark.copy(alpha = 0.9f))
-                                .border(1.dp, SpaceCardBorder, RoundedCornerShape(16.dp))
+                                .background(SpaceDark)
+                                .border(0.8.dp, TitaniumHairline, RoundedCornerShape(16.dp))
                                 .padding(14.dp)
                         ) {
                             Column {
@@ -264,18 +266,18 @@ fun PresentKshanDropdownCard(
                                 ) {
                                     Text(
                                         text = "TODAY'S SOLAR ARC",
-                                        fontFamily = ComicNeueFontFamily,
+                                        fontFamily = SpaceGroteskFontFamily,
                                         fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        fontWeight = FontWeight.SemiBold,
                                         letterSpacing = 1.2.sp,
-                                        color = NeonCyan
+                                        color = TextSecondary
                                     )
                                     Text(
                                         text = String.format(Locale.US, "%.2f%% ELAPSED", telemetry.dayElapsedPercent),
                                         fontFamily = CourierPrimeFontFamily,
                                         fontSize = 13.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = GoldSolar
+                                        color = WarmChampagne
                                     )
                                 }
 
@@ -285,10 +287,10 @@ fun PresentKshanDropdownCard(
                                     progress = { (telemetry.dayElapsedPercent / 100f).coerceIn(0f, 1f) },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(7.dp)
-                                        .clip(RoundedCornerShape(4.dp)),
-                                    color = GoldSolar,
-                                    trackColor = SpaceCardBorder
+                                        .height(6.dp)
+                                        .clip(RoundedCornerShape(3.dp)),
+                                    color = WarmChampagne,
+                                    trackColor = TitaniumHairline
                                 )
 
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -307,51 +309,35 @@ fun PresentKshanDropdownCard(
                                         text = String.format(Locale.US, "%,ds remaining", telemetry.secondsRemainingInDay),
                                         fontFamily = CourierPrimeFontFamily,
                                         fontSize = 11.sp,
-                                        color = NeonCyan
+                                        color = BrushedSilver
                                     )
                                 }
                             }
                         }
 
-                        // Indian Ritu (ऋतु) & Cosmic Season Badge
+                        // Quiet Titanium Glass Seasonal Card
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(
-                                    Brush.horizontalGradient(
-                                        listOf(
-                                            NeonCyan.copy(alpha = 0.12f),
-                                            NeonPurple.copy(alpha = 0.12f)
-                                        )
-                                    )
-                                )
-                                .border(1.dp, NeonCyan.copy(alpha = 0.35f), RoundedCornerShape(16.dp))
+                                .background(SpaceDark)
+                                .border(0.8.dp, TitaniumHairline, RoundedCornerShape(16.dp))
                                 .padding(horizontal = 14.dp, vertical = 10.dp),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(
-                                        text = telemetry.rituNameDevanagari,
-                                        fontFamily = KalamFont,
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = NeonCyan
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "• ${telemetry.rituNameEnglish}",
-                                        fontFamily = ComicNeueFontFamily,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = TextPrimary
-                                    )
-                                }
+                                Text(
+                                    text = "${telemetry.rituNameDevanagari} • ${telemetry.rituNameEnglish}",
+                                    fontFamily = SpaceGroteskFontFamily,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = TextPrimary
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = telemetry.cosmicSubtitle,
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 11.5.sp,
                                     color = TextSecondary
                                 )
@@ -365,21 +351,21 @@ fun PresentKshanDropdownCard(
                             placeholder = {
                                 Text(
                                     text = "Name this auspicious moment (optional)...",
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 13.sp,
                                     color = TextMuted
                                 )
                             },
                             singleLine = true,
                             textStyle = TextStyle(
-                                fontFamily = ComicNeueFontFamily,
+                                fontFamily = SpaceGroteskFontFamily,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = TextPrimary
                             ),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = GoldSolar,
-                                unfocusedBorderColor = SpaceCardBorder,
+                                focusedBorderColor = WarmChampagne,
+                                unfocusedBorderColor = TitaniumHairline,
                                 focusedTextColor = TextPrimary,
                                 unfocusedTextColor = TextPrimary
                             ),
@@ -404,7 +390,7 @@ fun PresentKshanDropdownCard(
                                 onDismiss()
                             },
                             isPrimary = true,
-                            accentColor = GoldSolar,
+                            accentColor = WarmChampagne,
                             modifier = Modifier.fillMaxWidth(),
                             testTag = "capture_present_kshan_button"
                         )
@@ -428,9 +414,10 @@ private data class VisionSpark(
 /**
  * Full-Screen Interactive Developer & Vision Showcase Modal ("✦ Vision").
  *
- * Shares the story and creative philosophy of developer **Abhinav Yaduvanshi**
- * with interactive orbital gyroscope animations, touch-reactive chronon sparks,
- * and kinetic horology cards.
+ * - Orbital dashed astrolabe rings are strictly constrained inside the top 120.dp `क्षण`
+ *   emblem box so they never overlap or cut through the "Abhinav Yaduvanshi" title text.
+ * - Uses unified Warm Champagne (#E5C158) and Brushed Silver (#CBD5E1) accents on quiet
+ *   Obsidian Glass cards.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -448,11 +435,11 @@ fun DeveloperVisionModal(
 
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(tween(280)) + scaleIn(
-            initialScale = 0.92f,
-            animationSpec = spring(dampingRatio = 0.76f, stiffness = 360f)
+        enter = fadeIn(tween(260)) + scaleIn(
+            initialScale = 0.94f,
+            animationSpec = spring(dampingRatio = 0.78f, stiffness = 380f)
         ),
-        exit = fadeOut(tween(220)) + scaleOut(targetScale = 0.94f, animationSpec = tween(200)),
+        exit = fadeOut(tween(200)) + scaleOut(targetScale = 0.95f, animationSpec = tween(180)),
         modifier = modifier
             .fillMaxSize()
             .zIndex(20f)
@@ -477,7 +464,7 @@ fun DeveloperVisionModal(
             label = "inner_ring_angle"
         )
         val auraPulse by infiniteTransition.animateFloat(
-            initialValue = 0.45f,
+            initialValue = 0.5f,
             targetValue = 1.0f,
             animationSpec = infiniteRepeatable(
                 animation = tween(durationMillis = 1800, easing = FastOutSlowInEasing),
@@ -489,45 +476,45 @@ fun DeveloperVisionModal(
         val sparks = remember { mutableStateListOf<VisionSpark>() }
         var burstCounter by remember { mutableIntStateOf(0) }
 
-        fun spawnVisionBurst(centerX: Float, centerY: Float, count: Int = 36) {
-            val palette = listOf(GoldSolar, NeonCyan, NeonPurple, NeonPink, Color.White)
+        fun spawnVisionBurst(centerX: Float, centerY: Float, count: Int = 32) {
+            val palette = listOf(WarmChampagne, BrushedSilver, IceCyan, Color.White)
             repeat(count) {
                 val angle = Random.nextFloat() * (2f * Math.PI.toFloat())
-                val speed = Random.nextFloat() * 7.5f + 1.8f
+                val speed = Random.nextFloat() * 6.5f + 1.5f
                 sparks.add(
                     VisionSpark(
                         x = centerX,
                         y = centerY,
                         vx = cos(angle) * speed,
                         vy = sin(angle) * speed,
-                        radius = Random.nextFloat() * 4.5f + 2f,
+                        radius = Random.nextFloat() * 3.8f + 1.8f,
                         color = palette[Random.nextInt(palette.size)],
                         alpha = 1f
                     )
                 )
             }
-            if (sparks.size > 220) {
-                sparks.removeRange(0, sparks.size - 220)
+            if (sparks.size > 180) {
+                sparks.removeRange(0, sparks.size - 180)
             }
         }
 
-        // 60 FPS particle physics loop while sparks are active
+        // 60 FPS particle physics loop strictly while `visible == true`
         LaunchedEffect(visible) {
-            // Initial welcome burst
-            spawnVisionBurst(500f, 380f, 42)
+            if (!visible) return@LaunchedEffect
+            spawnVisionBurst(500f, 240f, 34)
             while (visible) {
                 withFrameNanos {
                     val iterator = sparks.listIterator()
                     while (iterator.hasNext()) {
                         val s = iterator.next()
-                        val nextAlpha = s.alpha - 0.022f
+                        val nextAlpha = s.alpha - 0.024f
                         if (nextAlpha <= 0f) {
                             iterator.remove()
                         } else {
                             iterator.set(
                                 s.copy(
                                     x = s.x + s.vx,
-                                    y = s.y + s.vy + 0.08f,
+                                    y = s.y + s.vy + 0.07f,
                                     vx = s.vx * 0.97f,
                                     vy = s.vy * 0.97f,
                                     alpha = nextAlpha
@@ -545,9 +532,9 @@ fun DeveloperVisionModal(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF040711),
-                            Color(0xFF090E1E),
-                            Color(0xFF040711)
+                            Color(0xFF04060C),
+                            Color(0xFF080C16),
+                            Color(0xFF04060C)
                         )
                     )
                 )
@@ -558,79 +545,17 @@ fun DeveloperVisionModal(
                         } catch (e: Exception) {
                             Log.w("DeveloperVisionModal", "Haptic unavailable", e)
                         }
-                        spawnVisionBurst(offset.x, offset.y, 28)
+                        spawnVisionBurst(offset.x, offset.y, 24)
                     }
                 }
                 .testTag("developer_vision_modal")
         ) {
-            // Background Interactive Orbital Astrolabe & Spark Canvas
+            // Subtle Touch-Reactive Chronon Sparks Canvas
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val cx = size.width / 2f
-                val cy = 210.dp.toPx()
-
-                // Ambient Golden-Cyan Nebula
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            GoldSolar.copy(alpha = 0.14f * auraPulse),
-                            NeonCyan.copy(alpha = 0.08f * auraPulse),
-                            Color.Transparent
-                        ),
-                        center = Offset(cx, cy),
-                        radius = 240.dp.toPx()
-                    ),
-                    center = Offset(cx, cy),
-                    radius = 240.dp.toPx()
-                )
-
-                // Outer Rotating Astrolabe Ring
-                rotate(degrees = outerRingAngle, pivot = Offset(cx, cy)) {
-                    drawCircle(
-                        brush = Brush.sweepGradient(
-                            colors = listOf(
-                                GoldSolar.copy(alpha = 0.55f),
-                                Color.Transparent,
-                                NeonCyan.copy(alpha = 0.55f),
-                                Color.Transparent,
-                                GoldSolar.copy(alpha = 0.55f)
-                            ),
-                            center = Offset(cx, cy)
-                        ),
-                        radius = 122.dp.toPx(),
-                        center = Offset(cx, cy),
-                        style = Stroke(
-                            width = 1.6.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 12f), 0f)
-                        )
-                    )
-                }
-
-                // Inner Counter-Rotating Horology Ring
-                rotate(degrees = innerRingAngle, pivot = Offset(cx, cy)) {
-                    drawCircle(
-                        brush = Brush.sweepGradient(
-                            colors = listOf(
-                                NeonCyan.copy(alpha = 0.65f),
-                                NeonPurple.copy(alpha = 0.35f),
-                                GoldSolar.copy(alpha = 0.65f),
-                                NeonCyan.copy(alpha = 0.65f)
-                            ),
-                            center = Offset(cx, cy)
-                        ),
-                        radius = 86.dp.toPx(),
-                        center = Offset(cx, cy),
-                        style = Stroke(
-                            width = 1.2.dp.toPx(),
-                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 10f), 0f)
-                        )
-                    )
-                }
-
-                // Render Interactive Chronon Sparks
                 sparks.forEach { s ->
                     drawCircle(
-                        color = s.color.copy(alpha = (s.alpha * 0.35f).coerceIn(0f, 1f)),
-                        radius = s.radius * 2.4f,
+                        color = s.color.copy(alpha = (s.alpha * 0.30f).coerceIn(0f, 1f)),
+                        radius = s.radius * 2.2f,
                         center = Offset(s.x, s.y)
                     )
                     drawCircle(
@@ -659,8 +584,8 @@ fun DeveloperVisionModal(
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(50))
-                            .background(GoldSolar.copy(alpha = 0.14f))
-                            .border(1.dp, GoldSolar.copy(alpha = 0.5f), RoundedCornerShape(50))
+                            .background(ObsidianGlass)
+                            .border(0.8.dp, WarmChampagne.copy(alpha = 0.45f), RoundedCornerShape(50))
                             .padding(horizontal = 12.dp, vertical = 5.dp)
                     ) {
                         Text(
@@ -669,7 +594,7 @@ fun DeveloperVisionModal(
                             fontSize = 10.5.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = 1.2.sp,
-                            color = GoldSolar
+                            color = WarmChampagne
                         )
                     }
 
@@ -683,97 +608,131 @@ fun DeveloperVisionModal(
                             onDismiss()
                         },
                         modifier = Modifier
-                            .size(38.dp)
+                            .size(36.dp)
                             .clip(CircleShape)
-                            .background(SpaceCard)
-                            .border(1.dp, SpaceCardBorder, CircleShape)
+                            .background(ObsidianGlass)
+                            .border(0.8.dp, TitaniumHairline, CircleShape)
                             .testTag("close_vision_modal_button")
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close Vision Modal",
                             tint = TextPrimary,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
-                // Sculptural Center Crest (क्षण + AY Monogram)
+                // Strictly Contained 120.dp Emblem & Orbital Astrolabe Box (never overlaps title below)
                 Box(
-                    modifier = Modifier
-                        .size(108.dp)
-                        .graphicsLayer {
-                            val s = 0.97f + 0.05f * auraPulse
-                            scaleX = s
-                            scaleY = s
-                        }
-                        .clip(CircleShape)
-                        .background(
-                            Brush.radialGradient(
-                                colors = listOf(
-                                    Color(0xFF162038),
-                                    Color(0xFF0A0F1E)
-                                )
-                            )
-                        )
-                        .border(
-                            width = 2.dp,
-                            brush = Brush.sweepGradient(
-                                listOf(GoldSolar, NeonCyan, NeonPurple, GoldSolar)
-                            ),
-                            shape = CircleShape
-                        ),
+                    modifier = Modifier.size(120.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "क्षण",
-                            fontFamily = KalamFont,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold,
-                            style = TextStyle(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(Color.White, GoldSolar, NeonCyan)
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val cx = size.width / 2f
+                        val cy = size.height / 2f
+
+                        // Soft Champagne Radial Glow inside the 120.dp box
+                        drawCircle(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    WarmChampagne.copy(alpha = 0.16f * auraPulse),
+                                    Color.Transparent
+                                ),
+                                center = Offset(cx, cy),
+                                radius = size.minDimension / 2f
+                            ),
+                            center = Offset(cx, cy),
+                            radius = size.minDimension / 2f
+                        )
+
+                        // Outer Rotating Dashed Ring strictly within 56.dp radius
+                        rotate(degrees = outerRingAngle, pivot = Offset(cx, cy)) {
+                            drawCircle(
+                                color = WarmChampagne.copy(alpha = 0.45f),
+                                radius = 56.dp.toPx(),
+                                center = Offset(cx, cy),
+                                style = Stroke(
+                                    width = 1.1.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 10f), 0f)
                                 )
                             )
-                        )
-                        Text(
-                            text = "ABHINAV • Y",
-                            fontFamily = CourierPrimeFontFamily,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            letterSpacing = 1.4.sp,
-                            color = NeonCyan
-                        )
+                        }
+
+                        // Inner Counter-Rotating Dashed Ring strictly within 46.dp radius
+                        rotate(degrees = innerRingAngle, pivot = Offset(cx, cy)) {
+                            drawCircle(
+                                color = BrushedSilver.copy(alpha = 0.40f),
+                                radius = 46.dp.toPx(),
+                                center = Offset(cx, cy),
+                                style = Stroke(
+                                    width = 0.9.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 8f), 0f)
+                                )
+                            )
+                        }
+                    }
+
+                    // Center 82.dp Crest
+                    Box(
+                        modifier = Modifier
+                            .size(82.dp)
+                            .graphicsLayer {
+                                val s = 0.98f + 0.03f * auraPulse
+                                scaleX = s
+                                scaleY = s
+                            }
+                            .clip(CircleShape)
+                            .background(Color(0xFF0A0E17))
+                            .border(
+                                width = 1.dp,
+                                color = WarmChampagne.copy(alpha = 0.55f),
+                                shape = CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "क्षण",
+                                fontFamily = KalamFont,
+                                fontSize = 26.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = WarmChampagne
+                            )
+                            Text(
+                                text = "AY",
+                                fontFamily = CourierPrimeFontFamily,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 1.4.sp,
+                                color = BrushedSilver
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Developer Name & Visionary Subtitle
+                // Developer Name & Visionary Subtitle (completely clear of any orbital rings)
                 Text(
                     text = "Abhinav Yaduvanshi",
-                    fontFamily = ComicNeueFontFamily,
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
-                    style = TextStyle(
-                        brush = Brush.horizontalGradient(
-                            colors = listOf(Color.White, GoldSolar, NeonCyan)
-                        )
-                    ),
+                    fontFamily = SpaceGroteskFontFamily,
+                    fontSize = 26.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = TextPrimary,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Creator & Chief Time Architect of क्षण (Kshan)",
-                    fontFamily = ComicNeueFontFamily,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = NeonCyan,
+                    text = "Creator & Chief Time Architect of Kshan",
+                    fontFamily = SpaceGroteskFontFamily,
+                    fontSize = 13.5.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = WarmChampagne,
                     textAlign = TextAlign.Center
                 )
 
@@ -783,8 +742,8 @@ fun DeveloperVisionModal(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(SpaceCard.copy(alpha = 0.9f))
-                        .border(1.dp, SpaceCardBorder, RoundedCornerShape(50))
+                        .background(ObsidianGlass)
+                        .border(0.8.dp, TitaniumHairline, RoundedCornerShape(50))
                         .padding(horizontal = 14.dp, vertical = 5.dp)
                 ) {
                     Text(
@@ -792,17 +751,17 @@ fun DeveloperVisionModal(
                         fontFamily = CourierPrimeFontFamily,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = GoldSolar
+                        color = BrushedSilver
                     )
                 }
 
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
-                // Philosophy Card 1: The Soul of Kshan
+                // Philosophy Card 1: The Soul of Kshan (Champagne Accent)
                 FrostedGlassCard(
-                    borderColor = GoldSolar,
-                    glowAlpha = 0.45f,
-                    cornerRadius = 24.dp,
+                    borderColor = TitaniumHairline,
+                    glowAlpha = 0.25f,
+                    cornerRadius = 22.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
@@ -810,37 +769,37 @@ fun DeveloperVisionModal(
                             Icon(
                                 imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
-                                tint = GoldSolar,
-                                modifier = Modifier.size(18.dp)
+                                tint = WarmChampagne,
+                                modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "THE VISION BEHIND क्षण (KSHAN)",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.4.sp,
-                                color = GoldSolar
+                                text = "THE VISION BEHIND KSHAN",
+                                fontFamily = SpaceGroteskFontFamily,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.3.sp,
+                                color = WarmChampagne
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "\"In Sanskrit, 'Kshan' (क्षण) is not merely a mechanical tick of a clock — it is an auspicious, indivisible atom of lived consciousness. Every ordinary date calculator treats time like a sterile spreadsheet. My vision for Kshan was to sculpt time into a living, tactile instrument you can feel under your thumb.\"",
-                            fontFamily = ComicNeueFontFamily,
-                            fontSize = 14.sp,
+                            text = "\"In Sanskrit, 'Kshan' is not merely a mechanical tick of a clock — it is an auspicious, indivisible atom of lived consciousness. Every ordinary date calculator treats time like a sterile spreadsheet. My vision for Kshan was to sculpt time into a quiet, tactile instrument you can feel under your thumb.\"",
+                            fontFamily = SpaceGroteskFontFamily,
+                            fontSize = 13.5.sp,
                             color = TextPrimary,
                             lineHeight = 20.sp
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Philosophy Card 2: Tactile Horology & Indian Astronomy
+                // Philosophy Card 2: Tactile Horology & Indian Astronomy (Silver Accent)
                 FrostedGlassCard(
-                    borderColor = NeonCyan,
-                    glowAlpha = 0.45f,
-                    cornerRadius = 24.dp,
+                    borderColor = TitaniumHairline,
+                    glowAlpha = 0.25f,
+                    cornerRadius = 22.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
@@ -848,37 +807,37 @@ fun DeveloperVisionModal(
                             Icon(
                                 imageVector = Icons.Default.Explore,
                                 contentDescription = null,
-                                tint = NeonCyan,
-                                modifier = Modifier.size(18.dp)
+                                tint = BrushedSilver,
+                                modifier = Modifier.size(17.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "TACTILE HOROLOGY MEETS COSMIC RHYTHM",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                letterSpacing = 1.4.sp,
-                                color = NeonCyan
+                                fontFamily = SpaceGroteskFontFamily,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                letterSpacing = 1.3.sp,
+                                color = BrushedSilver
                             )
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Inspired by precision Leica rangefinders, luxury watch crowns, and classical Indian Ritu (ऋतु) seasonal astronomy, Kshan bridges analytical date math with human emotion — turning raw days into heartbeats, lunar cycles, 365-dot matrices, and acoustic sky fireworks.",
-                            fontFamily = ComicNeueFontFamily,
-                            fontSize = 13.5.sp,
+                            text = "Inspired by precision Leica rangefinders, Swiss watch crowns, and classical Indian Ritu seasonal astronomy, Kshan bridges analytical date math with human perspective — turning raw days into workdays, 365-dot matrices, and acoustic sky fireworks.",
+                            fontFamily = SpaceGroteskFontFamily,
+                            fontSize = 13.sp,
                             color = TextSecondary,
                             lineHeight = 19.sp
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Signature Engineering Pillars
+                // Philosophy Card 3: Signature Engineering Pillars (Champagne & Silver)
                 FrostedGlassCard(
-                    borderColor = NeonPurple,
-                    glowAlpha = 0.4f,
-                    cornerRadius = 24.dp,
+                    borderColor = TitaniumHairline,
+                    glowAlpha = 0.25f,
+                    cornerRadius = 22.dp,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column {
@@ -886,25 +845,25 @@ fun DeveloperVisionModal(
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = null,
-                                tint = NeonPink,
-                                modifier = Modifier.size(17.dp)
+                                tint = WarmChampagne,
+                                modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "SIGNATURE CRAFT BY ABHINAV YADUVANSHI",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontFamily = SpaceGroteskFontFamily,
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 letterSpacing = 1.3.sp,
-                                color = NeonPurple
+                                color = WarmChampagne
                             )
                         }
                         Spacer(modifier = Modifier.height(10.dp))
 
                         val pillars = listOf(
-                            "✦ Crown Haptic Scrubber",
-                            "✦ Temporal Constellation Arc",
-                            "✦ वर्तमान क्षण Ritu Pulse",
+                            "✦ 52.dp Crown Haptic Scrubber",
+                            "✦ 3-Metric Precision Strip",
+                            "✦ Present Kshan Solar Pulse",
                             "✦ 365-Dot Year Matrix",
                             "✦ 6-Shell Ballistic Fireworks",
                             "✦ Live OS Widget Chronometer"
@@ -919,7 +878,7 @@ fun DeveloperVisionModal(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(50))
                                         .background(SpaceDark)
-                                        .border(1.dp, NeonPurple.copy(alpha = 0.45f), RoundedCornerShape(50))
+                                        .border(0.8.dp, TitaniumHairline, RoundedCornerShape(50))
                                         .padding(horizontal = 11.dp, vertical = 5.dp)
                                 ) {
                                     Text(
@@ -927,7 +886,7 @@ fun DeveloperVisionModal(
                                         fontFamily = CourierPrimeFontFamily,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = TextPrimary
+                                        color = BrushedSilver
                                     )
                                 }
                             }
@@ -948,13 +907,13 @@ fun DeveloperVisionModal(
                         onClick = {
                             burstCounter++
                             spawnVisionBurst(
-                                centerX = Random.nextFloat() * 600f + 180f,
-                                centerY = Random.nextFloat() * 500f + 160f,
-                                count = 52
+                                centerX = Random.nextFloat() * 550f + 180f,
+                                centerY = Random.nextFloat() * 420f + 160f,
+                                count = 44
                             )
                         },
                         isPrimary = true,
-                        accentColor = GoldSolar,
+                        accentColor = WarmChampagne,
                         modifier = Modifier.weight(1.2f),
                         testTag = "vision_ignite_spark_button"
                     )
@@ -963,22 +922,13 @@ fun DeveloperVisionModal(
                         text = "Close",
                         onClick = onDismiss,
                         isPrimary = false,
-                        accentColor = NeonCyan,
-                        modifier = Modifier.weight(0.8f)
+                        accentColor = BrushedSilver,
+                        modifier = Modifier.weight(0.8f),
+                        testTag = "vision_bottom_close_button"
                     )
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Text(
-                    text = "Tap anywhere on the starfield to release chronon sparks • Designed & Engineered by Abhinav Yaduvanshi",
-                    fontFamily = ComicNeueFontFamily,
-                    fontSize = 11.sp,
-                    color = TextMuted,
-                    textAlign = TextAlign.Center
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }

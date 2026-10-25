@@ -2,7 +2,6 @@ package com.abhi.kshan.ui.screens
 
 import android.util.Log
 import android.view.HapticFeedbackConstants
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -43,6 +42,7 @@ import androidx.compose.material.icons.filled.BeachAccess
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Celebration
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.EventRepeat
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.PushPin
@@ -82,21 +82,20 @@ import com.abhi.kshan.ui.components.FrostedGlassCard
 import com.abhi.kshan.ui.components.HeroOrbitalTimepiece
 import com.abhi.kshan.ui.components.ModernCapsuleChip
 import com.abhi.kshan.ui.components.ModernPillButton
+import com.abhi.kshan.ui.components.ModernToggle
 import com.abhi.kshan.ui.components.resolveCelebrationTheme
-import com.abhi.kshan.ui.theme.ComicNeueFontFamily
+import com.abhi.kshan.ui.theme.BrushedSilver
 import com.abhi.kshan.ui.theme.CourierPrimeFontFamily
-import com.abhi.kshan.ui.theme.NeonBlue
-import com.abhi.kshan.ui.theme.NeonCyan
-import com.abhi.kshan.ui.theme.NeonEmerald
-import com.abhi.kshan.ui.theme.NeonPink
-import com.abhi.kshan.ui.theme.NeonPurple
+import com.abhi.kshan.ui.theme.IceCyan
 import com.abhi.kshan.ui.theme.SpaceCard
-import com.abhi.kshan.ui.theme.SpaceCardBorder
 import com.abhi.kshan.ui.theme.SpaceDark
+import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TabularMonoFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
+import com.abhi.kshan.ui.theme.TitaniumHairline
+import com.abhi.kshan.ui.theme.WarmChampagne
 import com.abhi.kshan.viewmodel.ChronoUiState
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -112,7 +111,7 @@ fun CountdownScreen(
     savedEvents: List<ChronoEvent>,
     onPinEvent: (ChronoEvent) -> Unit,
     onDeleteEvent: (ChronoEvent) -> Unit,
-    onAddEvent: (String, ZonedDateTime, String) -> Unit,
+    onAddEvent: (String, ZonedDateTime, String, Boolean) -> Unit,
     onTriggerCelebration: () -> Unit,
     onHudInteraction: (String) -> Unit,
     onClearCelebration: () -> Unit = {},
@@ -127,8 +126,12 @@ fun CountdownScreen(
         resolveCelebrationTheme(uiState.activeEventCategory, uiState.activeEventTitle)
     }
 
+    val isTodayCelebration = !uiState.isCountUpMode &&
+            uiState.countdownTelemetry.status == CountdownStatus.TODAY_CELEBRATION
+
     val statusText = when {
         uiState.isCountUpMode -> "Counting up live (+)"
+        isTodayCelebration -> "Milestone is Today ✦"
         uiState.isAutoRolled -> "Auto-rolled to ${uiState.effectiveCountdownTarget.year}"
         uiState.countdownTelemetry.status == CountdownStatus.ACTIVE -> "Ticking live"
         uiState.countdownTelemetry.status == CountdownStatus.TARGET_REACHED -> activeTheme.statusPillText
@@ -141,12 +144,12 @@ fun CountdownScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             item {
                 Spacer(modifier = Modifier.height(4.dp))
 
-                // 1. Unified Hero Orbital Timepiece Card (with Count Down / Days Since toggle & auto-rollover badge)
+                // 1. Unified Hero Orbital Timepiece Card (with Today ✦ state & past-only Days Since toggle)
                 HeroOrbitalTimepiece(
                     days = uiState.countdownTelemetry.days,
                     hours = uiState.countdownTelemetry.hours,
@@ -155,14 +158,16 @@ fun CountdownScreen(
                     categoryName = uiState.activeEventCategory,
                     eventTitle = uiState.activeEventTitle,
                     statusText = statusText,
-                    accentColor = activeTheme.primaryColor,
+                    accentColor = IceCyan,
                     isCountUpMode = uiState.isCountUpMode,
+                    canUseCountUpMode = uiState.canUseCountUpMode,
                     isAutoRolled = uiState.isAutoRolled,
+                    isTodayCelebration = isTodayCelebration,
                     targetYear = uiState.effectiveCountdownTarget.year,
                     onToggleCountUpMode = onToggleCountUpMode
                 )
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Action Buttons: + Add Countdown & Fireworks
                 Row(
@@ -177,7 +182,7 @@ fun CountdownScreen(
                             showAddSheet = true
                         },
                         isPrimary = true,
-                        accentColor = NeonCyan,
+                        accentColor = IceCyan,
                         modifier = Modifier
                             .weight(1.1f)
                             .testTag("add_event_button")
@@ -191,14 +196,14 @@ fun CountdownScreen(
                             showCelebrationCard = true
                         },
                         isPrimary = false,
-                        accentColor = activeTheme.primaryColor,
+                        accentColor = WarmChampagne,
                         modifier = Modifier
                             .weight(0.9f)
                             .testTag("test_celebration_button")
                     )
                 }
 
-                Spacer(modifier = Modifier.height(18.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Saved Countdowns Section Header
                 Row(
@@ -208,9 +213,9 @@ fun CountdownScreen(
                 ) {
                     Text(
                         text = "Saved Countdowns (${savedEvents.size})",
-                        fontFamily = ComicNeueFontFamily,
+                        fontFamily = SpaceGroteskFontFamily,
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontWeight = FontWeight.SemiBold,
                         color = TextPrimary
                     )
                 }
@@ -228,9 +233,9 @@ fun CountdownScreen(
                 )
             }
 
-            // 120.dp Bottom Spacer to prevent navigation dock collision
+            // Bottom Spacer for Floating Glass Dock
             item {
-                Spacer(modifier = Modifier.height(120.dp))
+                Spacer(modifier = Modifier.height(110.dp))
             }
         }
 
@@ -239,17 +244,17 @@ fun CountdownScreen(
                 (uiState.countdownTelemetry.hours * 3600L) +
                 (uiState.countdownTelemetry.minutes * 60L) +
                 uiState.countdownTelemetry.seconds
-        val remFormatted = if (uiState.isCountUpMode) {
-            "+${uiState.countdownTelemetry.days}d ${uiState.countdownTelemetry.hours}h ${uiState.countdownTelemetry.minutes}m elapsed"
-        } else {
-            "${uiState.countdownTelemetry.days}d ${uiState.countdownTelemetry.hours}h ${uiState.countdownTelemetry.minutes}m remaining"
+        val remFormatted = when {
+            uiState.isCountUpMode -> "+${uiState.countdownTelemetry.days}d ${uiState.countdownTelemetry.hours}h ${uiState.countdownTelemetry.minutes}m elapsed"
+            isTodayCelebration -> "Today ✦"
+            else -> "${uiState.countdownTelemetry.days}d ${uiState.countdownTelemetry.hours}h ${uiState.countdownTelemetry.minutes}m remaining"
         }
 
         CelebrationFireworksOverlay(
             visible = showCelebrationCard || uiState.triggerCelebration,
             eventTitle = uiState.activeEventTitle,
             category = uiState.activeEventCategory,
-            remainingSeconds = if (uiState.countdownTelemetry.status == CountdownStatus.TARGET_REACHED) 0L else remSecs,
+            remainingSeconds = if (uiState.countdownTelemetry.status == CountdownStatus.TARGET_REACHED || isTodayCelebration) 0L else remSecs,
             remainingTimeFormatted = remFormatted,
             powerSaverEnabled = uiState.powerSaverEnabled,
             onDismiss = {
@@ -263,8 +268,8 @@ fun CountdownScreen(
     if (showAddSheet) {
         SurpriseAddCountdownSheet(
             onDismiss = { showAddSheet = false },
-            onConfirm = { title, targetZdt, category ->
-                onAddEvent(title, targetZdt, category)
+            onConfirm = { title, targetZdt, category, repeatsYearly ->
+                onAddEvent(title, targetZdt, category, repeatsYearly)
                 showAddSheet = false
             }
         )
@@ -285,80 +290,66 @@ private fun SavedCountdownCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val infiniteTransition = rememberInfiniteTransition(label = "card_glow_pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 0.85f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse_alpha"
-    )
-
     val cardScale by animateFloatAsState(
         targetValue = when {
-            isPressed -> 0.96f
-            isSelected -> 1.02f
+            isPressed -> 0.97f
+            isSelected -> 1.01f
             else -> 1f
         },
-        animationSpec = spring(dampingRatio = 0.62f, stiffness = 380f),
+        animationSpec = spring(dampingRatio = 0.68f, stiffness = 420f),
         label = "saved_card_scale"
     )
 
-    val badgeScale by animateFloatAsState(
-        targetValue = if (isSelected) 1.06f else 1f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f),
-        label = "badge_scale"
-    )
-
-    val borderColor by animateColorAsState(
-        targetValue = when {
-            isSelected -> cardTheme.primaryColor
-            event.isPinned -> NeonCyan
-            else -> SpaceCardBorder
-        },
-        animationSpec = tween(250),
-        label = "card_border_color"
-    )
-
-    val (dateText, daysLeftText) = remember(event.targetIsoString, event.category) {
+    val (dateText, daysLeftText, isTodayMilestone) = remember(
+        event.targetIsoString,
+        event.category,
+        event.repeatsYearly
+    ) {
         try {
             val nowZdt = ZonedDateTime.now()
             val rawZdt = ZonedDateTime.parse(event.targetIsoString)
-            val isCountUp = TimeEngine.shouldDefaultToCountUp(nowZdt, rawZdt, event.category)
-            val (effectiveZdt, autoRolled) = TimeEngine.resolveEffectiveTarget(
+            val isCountUp = TimeEngine.shouldDefaultToCountUp(
                 now = nowZdt,
                 rawTarget = rawZdt,
                 category = event.category,
+                repeatsYearly = event.repeatsYearly
+            )
+            val (effectiveZdt, autoRolled) = TimeEngine.resolveEffectiveTarget(
+                now = nowZdt,
+                raw = rawZdt,
+                repeatsYearly = event.repeatsYearly,
                 isCountUpMode = isCountUp
             )
             val formatted = if (autoRolled) {
-                "${effectiveZdt.format(TimeEngine.FULL_DATE_FORMATTER)} (↻ Next)"
+                "${effectiveZdt.format(TimeEngine.FULL_DATE_FORMATTER)} (↻ Yearly)"
             } else {
                 effectiveZdt.format(TimeEngine.FULL_DATE_FORMATTER)
             }
-            val badgeStr = if (isCountUp) {
-                val elapsedDays = ChronoUnit.DAYS.between(rawZdt.toLocalDate(), LocalDate.now()).coerceAtLeast(0L)
-                if (elapsedDays == 0L) "+Today" else "+${elapsedDays}d since"
-            } else {
-                val days = ChronoUnit.DAYS.between(LocalDate.now(), effectiveZdt.toLocalDate()).coerceAtLeast(0L)
-                if (days == 0L) "Today!" else "${days}d left"
+            val today = LocalDate.now()
+            val isToday = !isCountUp && effectiveZdt.toLocalDate() == today
+            val badgeStr = when {
+                isToday -> "Today ✦"
+                isCountUp -> {
+                    val elapsedDays = ChronoUnit.DAYS.between(rawZdt.toLocalDate(), today).coerceAtLeast(0L)
+                    if (elapsedDays == 0L) "+Today" else "+${elapsedDays}d since"
+                }
+                else -> {
+                    val days = ChronoUnit.DAYS.between(today, effectiveZdt.toLocalDate()).coerceAtLeast(0L)
+                    "${days}d left"
+                }
             }
-            Pair(formatted, badgeStr)
+            Triple(formatted, badgeStr, isToday)
         } catch (e: Exception) {
             Log.w("CountdownScreen", "Failed to parse event targetIsoString: ${event.targetIsoString}", e)
-            Pair(event.targetIsoString, "0d left")
+            Triple(event.targetIsoString, "0d left", false)
         }
     }
 
+    val activeBorderColor = if (isTodayMilestone) WarmChampagne else IceCyan
+
     FrostedGlassCard(
-        borderColor = borderColor,
-        glowAlpha = when {
-            isSelected -> pulseAlpha
-            event.isPinned -> 0.55f
-            else -> 0.2f
-        },
+        borderColor = if (isSelected) activeBorderColor else TitaniumHairline,
+        glowAlpha = if (isSelected) 0.65f else 0.2f,
         cornerRadius = 20.dp,
         modifier = Modifier
             .fillMaxWidth()
@@ -377,21 +368,7 @@ private fun SavedCountdownCard(
             .testTag("event_card_${event.id}")
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    if (isSelected) {
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                cardTheme.primaryColor.copy(alpha = 0.12f * pulseAlpha),
-                                Color.Transparent
-                            )
-                        )
-                    } else {
-                        Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
-                    },
-                    shape = RoundedCornerShape(14.dp)
-                ),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -400,61 +377,48 @@ private fun SavedCountdownCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Animated Category Badge with Pulsing Glow & Spring Scale
+                    // Subtle Titanium Category Badge
                     Box(
                         modifier = Modifier
-                            .graphicsLayer {
-                                scaleX = badgeScale
-                                scaleY = badgeScale
-                            }
                             .clip(RoundedCornerShape(8.dp))
-                            .background(
-                                cardTheme.primaryColor.copy(
-                                    alpha = if (isSelected) 0.26f * pulseAlpha + 0.1f else 0.15f
-                                )
-                            )
-                            .border(
-                                width = if (isSelected) 1.3.dp else 1.dp,
-                                color = cardTheme.primaryColor.copy(
-                                    alpha = if (isSelected) pulseAlpha.coerceIn(0.6f, 1f) else 0.5f
-                                ),
-                                shape = RoundedCornerShape(8.dp)
-                            )
+                            .background(Color.White.copy(alpha = 0.06f))
+                            .border(0.8.dp, TitaniumHairline, RoundedCornerShape(8.dp))
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 imageVector = cardTheme.icon,
                                 contentDescription = null,
-                                tint = cardTheme.primaryColor,
+                                tint = if (isSelected) IceCyan else TextSecondary,
                                 modifier = Modifier.size(12.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = event.category.uppercase(),
-                                fontFamily = ComicNeueFontFamily,
+                                fontFamily = SpaceGroteskFontFamily,
                                 fontSize = 10.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = cardTheme.primaryColor
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isSelected) IceCyan else TextSecondary
                             )
                         }
                     }
 
-                    // Bold Typewriter Remaining Days Badge ("45d left")
+                    // Tabular Remaining Days / Today ✦ Badge
                     Box(
                         modifier = Modifier
-                            .graphicsLayer {
-                                scaleX = badgeScale
-                                scaleY = badgeScale
-                            }
                             .clip(RoundedCornerShape(8.dp))
                             .background(
-                                if (isSelected) cardTheme.primaryColor.copy(alpha = 0.22f)
-                                else SpaceDark.copy(alpha = 0.85f)
+                                if (isTodayMilestone) WarmChampagne.copy(alpha = 0.16f)
+                                else if (isSelected) IceCyan.copy(alpha = 0.16f)
+                                else SpaceDark
                             )
                             .border(
-                                width = 1.dp,
-                                color = cardTheme.primaryColor.copy(alpha = if (isSelected) 0.85f else 0.45f),
+                                width = 0.8.dp,
+                                color = when {
+                                    isTodayMilestone -> WarmChampagne.copy(alpha = 0.55f)
+                                    isSelected -> IceCyan.copy(alpha = 0.55f)
+                                    else -> TitaniumHairline
+                                },
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .padding(horizontal = 8.dp, vertical = 3.dp)
@@ -464,17 +428,31 @@ private fun SavedCountdownCard(
                             fontFamily = CourierPrimeFontFamily,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (isSelected) Color.White else cardTheme.primaryColor
+                            color = when {
+                                isTodayMilestone -> WarmChampagne
+                                isSelected -> IceCyan
+                                else -> TextPrimary
+                            }
+                        )
+                    }
+
+                    if (event.repeatsYearly) {
+                        Text(
+                            text = "↻ Yearly",
+                            fontFamily = SpaceGroteskFontFamily,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Normal,
+                            color = TextMuted
                         )
                     }
 
                     if (event.isPinned) {
                         Text(
                             text = "• Pinned",
-                            fontFamily = ComicNeueFontFamily,
+                            fontFamily = SpaceGroteskFontFamily,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NeonCyan
+                            fontWeight = FontWeight.SemiBold,
+                            color = IceCyan
                         )
                     }
                 }
@@ -483,9 +461,9 @@ private fun SavedCountdownCard(
 
                 Text(
                     text = event.title,
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
                 )
 
@@ -505,7 +483,7 @@ private fun SavedCountdownCard(
                     icon = Icons.Default.PushPin,
                     contentDescription = "Pin Countdown",
                     isActive = event.isPinned,
-                    activeColor = NeonCyan,
+                    activeColor = IceCyan,
                     onClick = {
                         onHudInteraction("'${event.title}' pinned to your home screen widget.")
                         onPin()
@@ -525,12 +503,11 @@ private fun SavedCountdownCard(
     }
 }
 
-// "Surprise Me" State-of-the-Art Add Countdown Modal Bottom Sheet
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SurpriseAddCountdownSheet(
     onDismiss: () -> Unit,
-    onConfirm: (String, ZonedDateTime, String) -> Unit
+    onConfirm: (String, ZonedDateTime, String, Boolean) -> Unit
 ) {
     val view = LocalView.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -539,18 +516,20 @@ private fun SurpriseAddCountdownSheet(
     var selectedDate by remember { mutableStateOf(LocalDate.now().plusDays(7)) }
     var selectedTime by remember { mutableStateOf(LocalTime.of(9, 0)) }
     var selectedCategory by remember { mutableStateOf("Holiday") }
+    var repeatsYearly by remember { mutableStateOf(true) }
     var showDatePicker by remember { mutableStateOf(false) }
 
     val categories = remember {
         listOf(
-            Triple("Holiday", Icons.Default.BeachAccess, NeonEmerald),
-            Triple("Celebration", Icons.Default.Celebration, NeonPurple),
-            Triple("Birthday", Icons.Default.Cake, NeonPink),
-            Triple("Goal", Icons.Default.Flag, NeonCyan),
-            Triple("Vacation", Icons.Default.BeachAccess, Color(0xFF38BDF8)),
-            Triple("Milestone", Icons.Default.Star, Color(0xFFFFD700)),
-            Triple("Deadline", Icons.Default.Alarm, NeonBlue),
-            Triple("Personal", Icons.Default.Favorite, Color(0xFFF472B6))
+            Triple("Holiday", Icons.Default.BeachAccess, IceCyan),
+            Triple("Birthday", Icons.Default.Cake, WarmChampagne),
+            Triple("Anniversary", Icons.Default.Favorite, WarmChampagne),
+            Triple("Celebration", Icons.Default.Celebration, BrushedSilver),
+            Triple("Goal", Icons.Default.Flag, IceCyan),
+            Triple("Vacation", Icons.Default.BeachAccess, IceCyan),
+            Triple("Milestone", Icons.Default.Star, WarmChampagne),
+            Triple("Deadline", Icons.Default.Alarm, BrushedSilver),
+            Triple("Personal", Icons.Default.Favorite, BrushedSilver)
         )
     }
 
@@ -584,7 +563,7 @@ private fun SurpriseAddCountdownSheet(
                     .padding(vertical = 12.dp)
                     .size(width = 44.dp, height = 4.dp)
                     .clip(CircleShape)
-                    .background(SpaceCardBorder)
+                    .background(TitaniumHairline)
             )
         }
     ) {
@@ -593,7 +572,7 @@ private fun SurpriseAddCountdownSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
             // Header
             Row(
@@ -603,14 +582,14 @@ private fun SurpriseAddCountdownSheet(
             ) {
                 Text(
                     text = "New Countdown",
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.SemiBold,
                     color = TextPrimary
                 )
                 Text(
                     text = "Cancel",
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 14.sp,
                     color = TextMuted,
                     modifier = Modifier.clickable {
@@ -622,8 +601,8 @@ private fun SurpriseAddCountdownSheet(
 
             // Live Interactive Preview Card
             FrostedGlassCard(
-                borderColor = NeonCyan,
-                glowAlpha = 0.5f,
+                borderColor = IceCyan,
+                glowAlpha = 0.6f,
                 cornerRadius = 20.dp,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -634,18 +613,18 @@ private fun SurpriseAddCountdownSheet(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = selectedCategory.uppercase(),
-                            fontFamily = ComicNeueFontFamily,
+                            text = selectedCategory.uppercase() + if (repeatsYearly) " • REPEATS YEARLY" else "",
+                            fontFamily = SpaceGroteskFontFamily,
                             fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = NeonCyan
+                            fontWeight = FontWeight.SemiBold,
+                            color = IceCyan
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (title.isBlank()) "Event Title Preview" else title,
-                            fontFamily = ComicNeueFontFamily,
+                            fontFamily = SpaceGroteskFontFamily,
                             fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.SemiBold,
                             color = if (title.isBlank()) TextMuted else TextPrimary
                         )
                         Text(
@@ -662,11 +641,11 @@ private fun SurpriseAddCountdownSheet(
                             fontFamily = TabularMonoFontFamily,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = NeonCyan
+                            color = IceCyan
                         )
                         Text(
                             text = "days left",
-                            fontFamily = ComicNeueFontFamily,
+                            fontFamily = SpaceGroteskFontFamily,
                             fontSize = 11.sp,
                             color = TextMuted
                         )
@@ -681,11 +660,11 @@ private fun SurpriseAddCountdownSheet(
                 label = { Text("What are you looking forward to?") },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = NeonCyan,
-                    unfocusedBorderColor = SpaceCardBorder,
+                    focusedBorderColor = IceCyan,
+                    unfocusedBorderColor = TitaniumHairline,
                     focusedTextColor = TextPrimary,
                     unfocusedTextColor = TextPrimary,
-                    focusedLabelColor = NeonCyan,
+                    focusedLabelColor = IceCyan,
                     unfocusedLabelColor = TextMuted
                 ),
                 shape = RoundedCornerShape(16.dp),
@@ -698,7 +677,7 @@ private fun SurpriseAddCountdownSheet(
             Column {
                 Text(
                     text = "Quick Date Presets",
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextMuted
@@ -730,7 +709,7 @@ private fun SurpriseAddCountdownSheet(
             Column {
                 Text(
                     text = "Time of Day",
-                    fontFamily = ComicNeueFontFamily,
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextMuted
@@ -747,11 +726,11 @@ private fun SurpriseAddCountdownSheet(
                 }
             }
 
-            // Visual Category Selector (LazyRow) with Pulsing Glow & Spring Scale
+            // Visual Category Selector
             Column {
                 Text(
-                    text = "Category Icon",
-                    fontFamily = ComicNeueFontFamily,
+                    text = "Category",
+                    fontFamily = SpaceGroteskFontFamily,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = TextMuted
@@ -769,29 +748,78 @@ private fun SurpriseAddCountdownSheet(
                             icon = icon,
                             color = color,
                             isSelected = isSel,
-                            onClick = { selectedCategory = name }
+                            onClick = {
+                                selectedCategory = name
+                                repeatsYearly = TimeEngine.defaultRepeatsYearlyForCategory(name)
+                            }
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            // Repeats Yearly Toggle Row (defaults true for Birthday, Holiday, Anniversary)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(SpaceCard)
+                    .border(0.8.dp, TitaniumHairline, RoundedCornerShape(14.dp))
+                    .clickable {
+                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        repeatsYearly = !repeatsYearly
+                    }
+                    .padding(horizontal = 14.dp, vertical = 10.dp)
+                    .testTag("add_event_repeats_yearly_row"),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.EventRepeat,
+                        contentDescription = null,
+                        tint = if (repeatsYearly) IceCyan else TextMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column {
+                        Text(
+                            text = "Repeats Yearly",
+                            fontFamily = SpaceGroteskFontFamily,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Auto-rolls to next year after passing",
+                            fontFamily = SpaceGroteskFontFamily,
+                            fontSize = 11.5.sp,
+                            color = TextMuted
+                        )
+                    }
+                }
+
+                ModernToggle(
+                    checked = repeatsYearly,
+                    onCheckedChange = { repeatsYearly = it },
+                    testTag = "add_event_repeats_yearly_toggle"
+                )
+            }
 
             // Confirm Button
             ModernPillButton(
                 text = "Save Countdown",
                 onClick = {
                     val finalTitle = title.ifBlank { "Special $selectedCategory" }
-                    onConfirm(finalTitle, targetZdt, selectedCategory)
+                    onConfirm(finalTitle, targetZdt, selectedCategory, repeatsYearly)
                 },
                 isPrimary = true,
-                accentColor = NeonCyan,
+                accentColor = IceCyan,
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("confirm_add_event_button")
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
         }
     }
 
@@ -816,8 +844,8 @@ private fun TimeChip(
 ) {
     val view = LocalView.current
     val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.04f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        targetValue = if (isSelected) 1.03f else 1f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 400f),
         label = "time_chip_scale"
     )
 
@@ -828,10 +856,10 @@ private fun TimeChip(
                 scaleY = scale
             }
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) NeonCyan.copy(alpha = 0.2f) else SpaceCard)
+            .background(if (isSelected) IceCyan.copy(alpha = 0.16f) else SpaceCard)
             .border(
-                1.dp,
-                if (isSelected) NeonCyan else SpaceCardBorder,
+                0.8.dp,
+                if (isSelected) IceCyan.copy(alpha = 0.65f) else TitaniumHairline,
                 RoundedCornerShape(12.dp)
             )
             .clickable {
@@ -843,10 +871,10 @@ private fun TimeChip(
     ) {
         Text(
             text = label,
-            fontFamily = ComicNeueFontFamily,
+            fontFamily = SpaceGroteskFontFamily,
             fontSize = 11.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-            color = if (isSelected) NeonCyan else TextSecondary,
+            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (isSelected) IceCyan else TextSecondary,
             textAlign = TextAlign.Center
         )
     }
@@ -861,20 +889,9 @@ private fun CategoryPill(
     onClick: () -> Unit
 ) {
     val view = LocalView.current
-    val infiniteTransition = rememberInfiniteTransition(label = "category_pill_pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.42f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "cat_pulse_alpha"
-    )
-
     val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.07f else 1f,
-        animationSpec = spring(dampingRatio = 0.55f, stiffness = 400f),
+        targetValue = if (isSelected) 1.04f else 1f,
+        animationSpec = spring(dampingRatio = 0.65f, stiffness = 400f),
         label = "cat_pill_scale"
     )
 
@@ -885,10 +902,10 @@ private fun CategoryPill(
                 scaleY = scale
             }
             .clip(RoundedCornerShape(14.dp))
-            .background(if (isSelected) color.copy(alpha = pulseAlpha) else SpaceCard)
+            .background(if (isSelected) color.copy(alpha = 0.16f) else SpaceCard)
             .border(
-                width = if (isSelected) 1.5.dp else 1.dp,
-                color = if (isSelected) color else SpaceCardBorder,
+                width = 0.8.dp,
+                color = if (isSelected) color.copy(alpha = 0.65f) else TitaniumHairline,
                 shape = RoundedCornerShape(14.dp)
             )
             .clickable {
@@ -902,14 +919,14 @@ private fun CategoryPill(
                 imageVector = icon,
                 contentDescription = null,
                 tint = if (isSelected) color else TextMuted,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(15.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = name,
-                fontFamily = ComicNeueFontFamily,
+                fontFamily = SpaceGroteskFontFamily,
                 fontSize = 12.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (isSelected) color else TextSecondary
             )
         }

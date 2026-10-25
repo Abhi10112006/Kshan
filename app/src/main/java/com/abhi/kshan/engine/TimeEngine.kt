@@ -3,8 +3,8 @@ package com.abhi.kshan.engine
 import java.time.DayOfWeek
 import java.time.Duration
 import java.time.LocalDate
+import java.time.MonthDay
 import java.time.Period
-import java.time.YearMonth
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -21,6 +21,7 @@ data class DifferenceResult(
 
 enum class CountdownStatus {
     ACTIVE,
+    TODAY_CELEBRATION,
     TARGET_REACHED,
     EVENT_PASSED,
     AWAITING
@@ -40,6 +41,17 @@ data class QuickJumpItem(
     val daysAdded: Int
 )
 
+data class CompactMetricsStrip(
+    val weeks: Long,
+    val remainingDays: Long,
+    val workdays: Long,
+    val totalHours: Long,
+    val weeksAndDaysText: String,
+    val workdaysText: String,
+    val hoursText: String,
+    val formattedLine: String
+)
+
 data class TemporalContextCardItem(
     val title: String,
     val primaryMetric: String,
@@ -48,7 +60,7 @@ data class TemporalContextCardItem(
 )
 
 data class TemporalConstellationTelemetry(
-    val todayProgressAlongArc: Float?, // 0f..1f if Today lies between min(start,end) and max(start,end), else clamped indicator
+    val todayProgressAlongArc: Float?,
     val isTodayInsideSpan: Boolean,
     val cards: List<TemporalContextCardItem>
 )
@@ -86,11 +98,30 @@ object TimeEngine {
     val FULL_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("EEEE, MMMM d, yyyy", Locale.US)
     val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
 
-    private val RECURRING_CATEGORIES = setOf("holiday", "birthday", "anniversary", "festival")
+    private val YEARLY_DEFAULT_CATEGORIES = setOf("birthday", "holiday", "anniversary")
 
-    fun isRecurringCategory(category: String): Boolean {
+    /**
+     * Returns true if a category defaults to `repeatsYearly = true` when creating a new event.
+     * Strictly matches Birthday, Holiday, and Anniversary.
+     */
+    fun defaultRepeatsYearlyForCategory(category: String): Boolean {
         val lower = category.trim().lowercase(Locale.US)
-        return RECURRING_CATEGORIES.any { lower.contains(it) }
+        return lower in YEARLY_DEFAULT_CATEGORIES
+    }
+
+    fun isRecurringCategory(category: String): Boolean = defaultRepeatsYearlyForCategory(category)
+
+    /**
+     * Returns true ONLY when the event has a past/present origin timestamp or is a captured Kshan.
+     * Strictly future events cannot be toggled to "+ Days Since" mode.
+     */
+    fun canUseCountUpMode(
+        now: ZonedDateTime,
+        rawTarget: ZonedDateTime,
+        category: String = ""
+    ): Boolean {
+        if (category.equals("Kshan", ignoreCase = true)) return true
+        return !rawTarget.toInstant().isAfter(now.toInstant())
     }
 
     /**
@@ -100,38 +131,71 @@ object TimeEngine {
     fun shouldDefaultToCountUp(
         now: ZonedDateTime,
         rawTarget: ZonedDateTime,
-        category: String
+        category: String,
+        repeatsYearly: Boolean = defaultRepeatsYearlyForCategory(category)
     ): Boolean {
         if (category.equals("Kshan", ignoreCase = true)) return true
-        return rawTarget.toInstant().isBefore(now.toInstant()) && !isRecurringCategory(category)
+        return rawTarget.toLocalDate().isBefore(now.toLocalDate()) && !repeatsYearly
     }
 
     /**
      * Resolves the effective target ZonedDateTime and whether an annual recurring event
-     * was automatically rolled forward to its next upcoming occurrence.
+     * was rolled forward to its current or next upcoming occurrence.
+     *
+     * Rules:
+     * 1. Only rolls over when `repeatsYearly` is true AND `raw.toLocalDate().isBefore(today)`.
+     *    Future-year recurring events (e.g., Dec 2027) are NEVER pulled backward to the current year.
+     * 2. Uses `MonthDay.from(raw).atYear(...)` so Feb 29 leap-day events clamp cleanly to Feb 28 on
+     *    non-leap years (e.g., 2027) and return to Feb 29 on leap years (e.g., 2028).
+     * 3. Events whose month/day matches `today` stay on `today` all day so the UI can display
+     *    the dedicated `"Today ✦"` state for the entire calendar day.
      */
+    fun resolveEffectiveTarget(
+        now: ZonedDateTime,
+        raw: ZonedDateTime,
+        repeatsYearly: Boolean,
+        isCountUpMode: Boolean
+    ): Pair<ZonedDateTime, Boolean> {
+        val today = now.toLocalDate()
+        if (isCountUpMode || !repeatsYearly || !raw.toLocalDate().isBefore(today)) {
+            return raw to false
+        }
+        val md = MonthDay.from(raw)
+        var d = md.atYear(today.year)
+        if (d.isBefore(today)) d = md.atYear(today.year + 1)
+        return ZonedDateTime.of(d, raw.toLocalTime(), raw.zone) to true
+    }
+
+    // Backward-compatible overload delegating category -> defaultRepeatsYearlyForCategory
     fun resolveEffectiveTarget(
         now: ZonedDateTime,
         rawTarget: ZonedDateTime,
         category: String,
         isCountUpMode: Boolean
-    ): Pair<ZonedDateTime, Boolean> {
-        if (!isCountUpMode && rawTarget.toInstant().isBefore(now.toInstant()) && isRecurringCategory(category)) {
-            var rolled = rawTarget
-            while (!rolled.toInstant().isAfter(now.toInstant())) {
-                rolled = rolled.plusYears(1)
-            }
-            return Pair(rolled, true)
-        }
-        return Pair(rawTarget, false)
-    }
+    ): Pair<ZonedDateTime, Boolean> = resolveEffectiveTarget(
+        now = now,
+        raw = rawTarget,
+        repeatsYearly = defaultRepeatsYearlyForCategory(category),
+        isCountUpMode = isCountUpMode
+    )
 
     /**
      * Calculates live elapsed time since a past or captured Kshan milestone (`+ Days Since`).
+     * Never uses `abs()` to turn a future date into fake elapsed days.
      */
     fun calculateElapsedSince(now: ZonedDateTime, origin: ZonedDateTime): CountdownTelemetry {
-        val duration = Duration.between(origin.toInstant(), now.toInstant()).abs()
-        val totalSeconds = duration.seconds
+        val nowInstant = now.toInstant()
+        val originInstant = origin.toInstant()
+        if (originInstant.isAfter(nowInstant)) {
+            return CountdownTelemetry(
+                days = 0,
+                hours = 0,
+                minutes = 0,
+                seconds = 0,
+                status = CountdownStatus.AWAITING
+            )
+        }
+        val totalSeconds = Duration.between(originInstant, nowInstant).seconds.coerceAtLeast(0L)
         val days = totalSeconds / 86400L
         val hours = (totalSeconds % 86400L) / 3600L
         val minutes = (totalSeconds % 3600L) / 60L
@@ -146,26 +210,69 @@ object TimeEngine {
     }
 
     /**
-     * Projects any saved ChronoEvent onto the current calendar year's 1..365/366 day index.
-     * Recurring categories (Birthday, Holiday, Anniversary, Festival) are projected onto
-     * `currentYear` with leap-year safety so past-year birthdays and next-year rolled holidays
-     * always glow as gold milestone stars on the 365-dot Year Matrix.
+     * Projects any saved ChronoEvent onto `currentYear`'s 1..365/366 day index.
+     * Recurring yearly events (`repeatsYearly == true`) are projected onto `currentYear`
+     * via `MonthDay.from(eventZdt).atYear(currentYear)` with full leap-year safety.
      */
     fun projectEventDayOfYear(
         eventZdt: ZonedDateTime,
-        category: String,
+        repeatsYearly: Boolean,
         currentYear: Int
     ): Int? {
         val eventDate = eventZdt.toLocalDate()
         return if (eventDate.year == currentYear) {
             eventDate.dayOfYear
-        } else if (isRecurringCategory(category)) {
-            val ym = YearMonth.of(currentYear, eventDate.month)
-            val safeDay = eventDate.dayOfMonth.coerceAtMost(ym.lengthOfMonth())
-            ym.atDay(safeDay).dayOfYear
+        } else if (repeatsYearly) {
+            MonthDay.from(eventDate).atYear(currentYear).dayOfYear
         } else {
             null
         }
+    }
+
+    fun projectEventDayOfYear(
+        eventZdt: ZonedDateTime,
+        category: String,
+        currentYear: Int
+    ): Int? = projectEventDayOfYear(
+        eventZdt = eventZdt,
+        repeatsYearly = defaultRepeatsYearlyForCategory(category),
+        currentYear = currentYear
+    )
+
+    /**
+     * Computes the sleek single-line 3-Metric Strip for the Span (Difference) and Shift (Date Math) screens:
+     * - `weeks = totalDays / 7` and `remDays = totalDays % 7` (e.g., for 20 days: `2w 6d`)
+     * - `workdays = calculateBusinessDaysBetween(minDate, maxDate)` using actual Monday-Friday calendar math
+     * - `hours = totalDays * 24` (e.g., for 20 days: `480 Hours`)
+     */
+    fun calculateCompactMetricsStrip(
+        start: LocalDate,
+        end: LocalDate,
+        totalDays: Long = abs(ChronoUnit.DAYS.between(start, end))
+    ): CompactMetricsStrip {
+        val absDays = abs(totalDays)
+        val weeks = absDays / 7L
+        val remDays = absDays % 7L
+        val minDate = if (start.isBefore(end)) start else end
+        val maxDate = if (start.isBefore(end)) end else start
+        val workdays = calculateBusinessDaysBetween(minDate, maxDate)
+        val totalHours = absDays * 24L
+
+        val weeksAndDaysText = "${weeks}w ${remDays}d"
+        val workdaysText = "$workdays ${if (workdays == 1L) "Workday" else "Workdays"}"
+        val hoursText = "$totalHours ${if (totalHours == 1L) "Hour" else "Hours"}"
+        val formattedLine = "$weeksAndDaysText  •  $workdaysText  •  $hoursText"
+
+        return CompactMetricsStrip(
+            weeks = weeks,
+            remainingDays = remDays,
+            workdays = workdays,
+            totalHours = totalHours,
+            weeksAndDaysText = weeksAndDaysText,
+            workdaysText = workdaysText,
+            hoursText = hoursText,
+            formattedLine = formattedLine
+        )
     }
 
     /**
@@ -198,8 +305,7 @@ object TimeEngine {
     }
 
     /**
-     * Builds the 3-card Temporal Constellation & Visual Timeline Arc telemetry
-     * for the Span (Difference) and Shift (Date Math) screens.
+     * Builds the Temporal Constellation & Life Context metrics.
      */
     fun calculateTemporalConstellation(
         start: LocalDate,
@@ -222,24 +328,16 @@ object TimeEngine {
             else -> null
         }
 
+        val strip = calculateCompactMetricsStrip(start, end, daysCount)
         val absDays = abs(daysCount)
-        val weeks = absDays / 7L
-        val remDays = absDays % 7L
-        val totalHours = absDays * 24L
-        val totalMinutes = totalHours * 60L
+        val totalMinutes = strip.totalHours * 60L
 
-        val humanRhythmPrimary = when {
-            absDays == 0L -> "0 Weeks • Instantaneous"
-            weeks > 0L && remDays > 0L -> "$weeks ${if (weeks == 1L) "Week" else "Weeks"}, $remDays ${if (remDays == 1L) "Day" else "Days"}"
-            weeks > 0L -> "$weeks ${if (weeks == 1L) "Week" else "Weeks"} Exact"
-            else -> "$remDays ${if (remDays == 1L) "Day" else "Days"}"
-        }
-        val humanRhythmSecondary = String.format(Locale.US, "%,d Hours • %,d Minutes", totalHours, totalMinutes)
+        val humanRhythmPrimary = strip.weeksAndDaysText
+        val humanRhythmSecondary = String.format(Locale.US, "%,d Hours • %,d Minutes", strip.totalHours, totalMinutes)
 
         val lunarCycles = absDays.toDouble() / 29.53059
-        val workWeeks = absDays.toDouble() / 5.0
         val cosmicPrimary = String.format(Locale.US, "%.2f Lunar Cycles", lunarCycles)
-        val cosmicSecondary = String.format(Locale.US, "%.1f Standard 5-Day Workweeks", workWeeks)
+        val cosmicSecondary = strip.workdaysText
 
         val solarOrbitsPercent = (absDays.toDouble() / 365.2425) * 100.0
         val heartbeatsMillions = (absDays.toDouble() * 100_800.0) / 1_000_000.0
@@ -261,7 +359,7 @@ object TimeEngine {
                 title = "COSMIC & WORK RHYTHM",
                 primaryMetric = cosmicPrimary,
                 secondaryMetric = cosmicSecondary,
-                poeticCaption = "Synodic moon phases (29.53d) & professional sprints"
+                poeticCaption = "Synodic moon phases (29.53d) & Monday-Friday workdays"
             ),
             TemporalContextCardItem(
                 title = "SOLAR & LIFE PERSPECTIVE",
@@ -328,10 +426,12 @@ object TimeEngine {
         )
     }
 
-    private fun calculateBusinessDaysBetween(start: LocalDate, end: LocalDate): Long {
+    fun calculateBusinessDaysBetween(start: LocalDate, end: LocalDate): Long {
+        val minDate = if (start.isBefore(end)) start else end
+        val maxDate = if (start.isBefore(end)) end else start
         var count = 0L
-        var current = start
-        while (current.isBefore(end)) {
+        var current = minDate
+        while (current.isBefore(maxDate)) {
             val dow = current.dayOfWeek
             if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY) {
                 count++
@@ -367,9 +467,31 @@ object TimeEngine {
         return current
     }
 
+    /**
+     * Calculates live countdown telemetry.
+     *
+     * Compares `LocalDate` first: if `target.toLocalDate() == now.toLocalDate()`,
+     * returns `CountdownStatus.TODAY_CELEBRATION` ("Today ✦") for the entire calendar day
+     * so today's milestone is celebrated all day rather than expiring or rolling over at 10:01 AM.
+     */
     fun calculateCountdown(now: ZonedDateTime, target: ZonedDateTime): CountdownTelemetry {
         val nowInstant = now.toInstant()
         val targetInstant = target.toInstant()
+
+        // Dedicated "Today ✦" celebration state for the entire calendar day of the milestone
+        if (target.toLocalDate() == now.toLocalDate()) {
+            val remSeconds = Duration.between(nowInstant, targetInstant).seconds.coerceAtLeast(0L)
+            val hours = (remSeconds % 86400L) / 3600L
+            val minutes = (remSeconds % 3600L) / 60L
+            val seconds = remSeconds % 60L
+            return CountdownTelemetry(
+                days = 0,
+                hours = hours,
+                minutes = minutes,
+                seconds = seconds,
+                status = CountdownStatus.TODAY_CELEBRATION
+            )
+        }
 
         if (nowInstant.isAfter(targetInstant)) {
             val secondsDiff = Duration.between(targetInstant, nowInstant).seconds

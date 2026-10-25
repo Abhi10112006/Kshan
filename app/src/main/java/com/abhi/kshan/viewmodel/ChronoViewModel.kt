@@ -56,6 +56,8 @@ data class ChronoUiState(
     val effectiveCountdownTarget: ZonedDateTime = ZonedDateTime.now().plusDays(30),
     val activeEventTitle: String = "New Year's Celebration",
     val activeEventCategory: String = "Holiday",
+    val activeEventRepeatsYearly: Boolean = true,
+    val canUseCountUpMode: Boolean = false,
     val overrideCountUpMode: Boolean? = null,
     val isCountUpMode: Boolean = false,
     val isAutoRolled: Boolean = false,
@@ -105,6 +107,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                                 countdownTarget = parsed,
                                 activeEventTitle = event.title,
                                 activeEventCategory = event.category,
+                                activeEventRepeatsYearly = event.repeatsYearly,
                                 overrideCountUpMode = null
                             )
                         }
@@ -130,13 +133,31 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
         val state = _uiState.value
         val rawTarget = state.countdownTarget.withZoneSameInstant(getZoneId())
 
-        val effectiveCountUp = state.overrideCountUpMode
-            ?: TimeEngine.shouldDefaultToCountUp(now, rawTarget, state.activeEventCategory)
+        val canCountUp = TimeEngine.canUseCountUpMode(
+            now = now,
+            rawTarget = rawTarget,
+            category = state.activeEventCategory
+        )
+
+        // If the event is strictly in the future (!canCountUp), reset overrideCountUpMode = null
+        // so it can never get stuck in Days Since mode after an edit or target update.
+        val sanitizedOverride = if (canCountUp) state.overrideCountUpMode else null
+
+        val effectiveCountUp = if (!canCountUp) {
+            false
+        } else {
+            sanitizedOverride ?: TimeEngine.shouldDefaultToCountUp(
+                now = now,
+                rawTarget = rawTarget,
+                category = state.activeEventCategory,
+                repeatsYearly = state.activeEventRepeatsYearly
+            )
+        }
 
         val (effectiveTarget, autoRolled) = TimeEngine.resolveEffectiveTarget(
             now = now,
-            rawTarget = rawTarget,
-            category = state.activeEventCategory,
+            raw = rawTarget,
+            repeatsYearly = state.activeEventRepeatsYearly,
             isCountUpMode = effectiveCountUp
         )
 
@@ -156,6 +177,8 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.update {
             it.copy(
                 effectiveCountdownTarget = effectiveTarget,
+                canUseCountUpMode = canCountUp,
+                overrideCountUpMode = sanitizedOverride,
                 isCountUpMode = effectiveCountUp,
                 isAutoRolled = autoRolled,
                 countdownTelemetry = telemetry,
@@ -167,6 +190,22 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun toggleCountUpMode(enabled: Boolean) {
+        val now = ZonedDateTime.now(getZoneId())
+        val state = _uiState.value
+        val rawTarget = state.countdownTarget.withZoneSameInstant(getZoneId())
+        val canCountUp = TimeEngine.canUseCountUpMode(now, rawTarget, state.activeEventCategory)
+
+        if (enabled && !canCountUp) {
+            _uiState.update {
+                it.copy(
+                    overrideCountUpMode = null,
+                    hudLogText = "Days Since (+) is only available for past milestones."
+                )
+            }
+            tickTelemetry()
+            return
+        }
+
         _uiState.update {
             it.copy(
                 overrideCountUpMode = enabled,
@@ -188,7 +227,8 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                 targetIsoString = now.toString(),
                 category = "Kshan",
                 isPinned = false,
-                createdAtIsoString = now.toString()
+                createdAtIsoString = now.toString(),
+                repeatsYearly = false
             )
             dao.insertEvent(event)
             _uiState.update {
@@ -197,6 +237,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                     countdownTarget = now,
                     activeEventTitle = finalTitle,
                     activeEventCategory = "Kshan",
+                    activeEventRepeatsYearly = false,
                     overrideCountUpMode = null,
                     hudLogText = "Captured auspicious Kshan: '$finalTitle'"
                 )
@@ -280,7 +321,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setMathDays(days: Long) {
-        _uiState.update { it.copy(mathDays = days.coerceAtLeast(0)) }
+        _uiState.update { it.copy(mathDays = days.coerceIn(0L, 9999L)) }
         recalcDateMath()
     }
 
@@ -318,12 +359,18 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     // --- Countdown Engine ---
-    fun setCountdownTarget(target: ZonedDateTime, title: String = "Custom Event", category: String = "Celebration") {
+    fun setCountdownTarget(
+        target: ZonedDateTime,
+        title: String = "Custom Event",
+        category: String = "Celebration",
+        repeatsYearly: Boolean = TimeEngine.defaultRepeatsYearlyForCategory(category)
+    ) {
         _uiState.update {
             it.copy(
                 countdownTarget = target,
                 activeEventTitle = title,
                 activeEventCategory = category,
+                activeEventRepeatsYearly = repeatsYearly,
                 overrideCountUpMode = null,
                 hudLogText = "Tracking milestone: $title"
             )
@@ -331,14 +378,20 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
         tickTelemetry()
     }
 
-    fun addNewEvent(title: String, target: ZonedDateTime, category: String) {
+    fun addNewEvent(
+        title: String,
+        target: ZonedDateTime,
+        category: String,
+        repeatsYearly: Boolean = TimeEngine.defaultRepeatsYearlyForCategory(category)
+    ) {
         viewModelScope.launch {
             val event = ChronoEvent(
                 title = title,
                 targetIsoString = target.toString(),
                 category = category,
                 isPinned = false,
-                createdAtIsoString = ZonedDateTime.now().toString()
+                createdAtIsoString = ZonedDateTime.now().toString(),
+                repeatsYearly = repeatsYearly
             )
             dao.insertEvent(event)
             _uiState.update {
@@ -346,6 +399,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                     countdownTarget = target,
                     activeEventTitle = title,
                     activeEventCategory = category,
+                    activeEventRepeatsYearly = repeatsYearly,
                     overrideCountUpMode = null,
                     hudLogText = "Added new milestone: '$title'"
                 )
@@ -361,7 +415,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
             dao.setPinnedEvent(event.id)
             try {
                 val target = ZonedDateTime.parse(event.targetIsoString)
-                setCountdownTarget(target, event.title, event.category)
+                setCountdownTarget(target, event.title, event.category, event.repeatsYearly)
                 _uiState.update {
                     it.copy(hudLogText = "'${event.title}' pinned to your Home Screen widget!")
                 }
@@ -375,7 +429,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
     fun selectActiveEvent(event: ChronoEvent) {
         try {
             val target = ZonedDateTime.parse(event.targetIsoString)
-            setCountdownTarget(target, event.title, event.category)
+            setCountdownTarget(target, event.title, event.category, event.repeatsYearly)
             _uiState.update {
                 it.copy(hudLogText = "Focused on '${event.title}' (${event.category})")
             }
@@ -396,6 +450,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                             countdownTarget = nextTarget,
                             activeEventTitle = nextEvent.title,
                             activeEventCategory = nextEvent.category,
+                            activeEventRepeatsYearly = nextEvent.repeatsYearly,
                             overrideCountUpMode = null,
                             hudLogText = "Removed '${event.title}'. Switched to '${nextEvent.title}'."
                         )
@@ -408,6 +463,7 @@ class ChronoViewModel(application: Application) : AndroidViewModel(application) 
                     it.copy(
                         activeEventTitle = "No active countdowns",
                         activeEventCategory = "Celebration",
+                        activeEventRepeatsYearly = false,
                         overrideCountUpMode = null,
                         hudLogText = "Removed '${event.title}'. No countdowns remaining."
                     )

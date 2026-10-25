@@ -1,74 +1,99 @@
-# Sculptural Time Companion Upgrades for क्षण (Kshan)
+# क्षण (Kshan) — Minimalist Luxury Visual Reset & Final Engineering Review Blueprint
 
-Elevate **क्षण (Kshan)** from a utility date calculator into a tactile, sculptural precision-time instrument featuring a mechanical scrubbing ruler with true physical tape-ruler polarity, cosmic life-context telemetry, a floating *Present Moment (वर्तमान क्षण)* header overlay, an animated **✦ Vision** showcase for **Abhinav Yaduvanshi**, smart per-event *Count Down / Days Since* chronometers with holiday auto-rollover, and a 365-Dot Matrix Year Grid with annual milestone projection.
+This revised plan combines the **Minimalist Luxury Visual Reset ("Titanium & Ice" Monochrome Palette & Space Grotesk Typography)** with every requirement from both the **TimeEngine & Room Edge-Case Refinements** and the **5-Point Final Engineering Review**.
 
 ## User Review & Critical Decisions
 
 > [!IMPORTANT]
-> All Phase 1 decisions and all 5 logic, gesture, and UX refinements have been locked into this revised specification:
+> All items from your final engineering review have been integrated into this specification:
 
-- **Confirmed Decision 1 — `✦ Vision` Header Pill (Abhinav Yaduvanshi Creator & Vision Studio)**: Renamed the top-right header badge from `Pro` to **`✦ Vision`** (with a gold-to-cyan specular border glow) so it never looks like a paywall. Tapping it opens an interactive **Creator & Vision Studio** window crafted for **Abhinav Yaduvanshi**, featuring kinetic orbital particle rings, spring-animated philosophy cards, interactive touch-reactive constellations, and the story behind *क्षण (Kshan)*.
-- **Confirmed Decision 2 — Per-Event Smart Default + Manual Override (`Days Since +` vs. `Count Down −`) & Auto-Rollover**: Rather than a sticky global toggle that confuses future events when switching, the Hero Timepiece automatically derives its default mode per selected event:
-  - Defaults to **`Days Since (+)`** when `category == "Kshan"` or when a non-recurring event is in the past (`target.isBefore(now)`).
-  - Defaults to **`Count Down (−)`** when the event is in the future or is a recurring Holiday/Birthday/Anniversary/Festival (which automatically rolls forward to its next upcoming annual occurrence).
-  - Users can still manually tap the **`− Count Down | + Days Since`** toggle pill at any time to override the active event's view (e.g., inspecting total years/days elapsed since an original birthday or milestone).
-- **Confirmed Decision 3 — True Physical Tape-Ruler Polarity & Gesture Isolation**: `MechanicalScrubRuler` uses `Modifier.pointerInput(...) { detectHorizontalDragGestures { change, dragAmount -> change.consume(); ... } }` to strictly consume horizontal drags before any parent container sees them. Dragging the thumb **left** (`dragAmount < 0`) pulls higher numbers under the center indicator needle (**`+1 day`**), and dragging **right** (`dragAmount > 0`) pulls lower numbers under the needle (**`−1 day`**), matching a physical Leica dial or tape measure.
-- **Confirmed Decision 4 — Floating `PresentKshanDropdownCard` Overlay (`zIndex(10f)`)**: Tapping the top-left `क्षण` squircle renders `PresentKshanDropdownCard` as a floating `Box` overlay (`zIndex(10f)`) with a tap-outside dismiss scrim and spring slide+fade transition anchored below the header—never pushing or squishing the screen layout underneath.
-- **Confirmed Decision 5 — Annual Milestone Projection onto the 365-Dot Year Matrix**: `YearDotMatrixGrid` projects recurring categories (`Birthday`, `Holiday`, `Anniversary`, `Festival`, `Personal`) onto `currentYear` using `MonthDay` safe leap-year mapping (`YearMonth.of(currentYear, month).atDay(day.coerceAtMost(maxDay)).dayOfYear`), ensuring birthdays from past years (e.g., 2006) and holidays rolled into next year (e.g., 2027) always shine as interactive gold stars on the current year's 365-dot grid.
+1. **Non-Destructive Room Migration (`MIGRATION_1_2`)**:
+   - Removes `.fallbackToDestructiveMigration()` completely so user-saved countdowns are never wiped on upgrade.
+   - Registers `MIGRATION_1_2` on `chrono_events` to add `repeatsYearly INTEGER NOT NULL DEFAULT 0` and backfill `repeatsYearly = 1` where `lower(category) IN ('birthday','holiday','anniversary')`, exporting the v2 schema JSON.
+2. **Future-Safe Rollover & `repeatsYearly` Across All Call Sites**:
+   - `resolveEffectiveTarget(now, raw, repeatsYearly, isCountUpMode)` only rolls over when `repeatsYearly == true` **and** `raw.toLocalDate().isBefore(now.toLocalDate())`—preventing future-year recurring milestones (e.g., Dec 2027) from ever being pulled backward to the current year, and keeping events occurring today (`raw.toLocalDate() == today`) in a dedicated **`"Today ✦"`** celebration state all day.
+   - Passes `event.repeatsYearly` into `resolveEffectiveTarget` and `projectEventDayOfYear` across **all call sites**: `ChronoViewModel`, `CountdownScreen`, `ChronoWidgetProvider`, and `YearDotMatrixGrid` in `WidgetsDashboardScreen`.
+   - Resets `overrideCountUpMode = null` whenever an event is selected, edited, or moves from past to future (`!canUseCountUpMode`), preventing any future event from getting stuck in `+ Days Since`.
+3. **Exact 3-Metric Strip Math (`TimeEngine`)**:
+   - Replaces the tall bottom `HorizontalPager` on **Span** and **Shift** with a single-line frosted 3-metric strip computed from the exact span (`totalDays` and actual start/end `LocalDate` pair):
+     - `weeks = totalDays / 7` and `remDays = totalDays % 7` (e.g., `2w 6d` for 20 days).
+     - `workdays = calculateBusinessDaysBetween(minDate, maxDate)` using exact Monday–Friday calendar iteration (never `totalDays / 5`).
+     - `hours = totalDays * 24` (e.g., `2w 6d  •  14 Workdays  •  480 Hours`).
+4. **Crown Scrubber Boundary Clamping, Spring Snap-Back & TalkBack Semantics**:
+   - **Hard Boundary Clamping (`0..9999` on Shift)**: When `daysToShift == 0` and the user drags to decrease (or `9999` and drags to increase), clamps `dragAccumulatorPx = 0f`, freezes the sub-tick visual offset, and suppresses haptics.
+   - **Spring Snap-Back on Release**: In `onDragEnd` and `onDragCancel`, animates the leftover sub-tick visual offset (`dragAccumulatorPx % tickSpacingPx`) smoothly back to `0f` via `animateFloatAsState(spring())` so ticks re-center cleanly under the white laser needle when the finger lifts.
+   - **TalkBack Accessibility Semantics**: Adds `Modifier.semantics` (`customActions` / `setProgress`) with explicit increment/decrement accessibility actions on `MechanicalScrubRuler`.
+5. **`MY_PACKAGE_REPLACED` Widget Resync, Font/File Cleanup & Unit Tests**:
+   - Adds `android.intent.action.MY_PACKAGE_REPLACED` to `ChronoWidgetProvider`'s `<intent-filter>` in `AndroidManifest.xml` and handles `Intent.ACTION_MY_PACKAGE_REPLACED` in `onReceive` so home screen widgets immediately re-sync and reschedule alarms after an app update.
+   - Deletes unused `comic_neue` font files from `res/font/`, bundles **Space Grotesk** (`Regular 400` & `SemiBold 600`) with its OFL license notice, and deletes the stray `androidTest/java/com/example/ExampleInstrumentedTest.kt`.
+   - Adds comprehensive JUnit/Robolectric tests (`TimeEngineTest` & `MigrationTest`) covering Feb 29 leap-year rollover (to Feb 28 in 2027 and back to Feb 29 in leap year 2028), birthdays occurring today staying in `"Today ✦"` all day, future-year recurring events (Dec 2027) not getting pulled backward to Dec 2026, Dec 31 → Jan 1 year-boundary rollover, and `MIGRATION_1_2` data preservation.
 
 ---
 
 ## 1. Overview & Core Concept
 
-- **What It Does**: Transforms every static surface of *क्षण (Kshan)* into a tactile horological instrument:
-  1. **Mechanical Time Wheel / Scrubbing Ruler**: Thumb-driven horizontal chronometer tape between the date cards and the hero result with isolated horizontal drag consumption, physical tape polarity (drag left = `+1d`, drag right = `−1d`), and per-tick `TextHandleMove` haptics.
-  2. **Temporal Constellation & Visual Timeline Arc**: Replaces empty space around the hero number with a glowing curved timeline arc (plotting `Start`, `End`, and a live pulsing `Today` marker) plus a swipeable 3-card **Human Rhythm** micro-carousel (*Weeks + Hours*, *Lunar Cycles + Workweeks*, *Heartbeats + Year Share*).
-  3. **Soul of क्षण (Floating `वर्तमान क्षण` Overlay & `✦ Vision` Studio)**: Tapping the `क्षण` squircle floats the *Present Moment* glass overlay over the current tab (live Today % progress, Indian *Ritu / ऋतु* season, and 1-tap *"Capture This Kshan"* memory logger); tapping the **`✦ Vision`** badge launches the animated **Abhinav Yaduvanshi Vision Showcase**.
-  4. **Bi-Directional Chronometer (`Count Down −` / `Days Since +`) & Auto-Rollover**: Automatically selects the right mode per event (`Days Since +` for captured Kshans and past non-recurring milestones; `Count Down −` with automatic next-year rollover for recurring holidays/birthdays) while offering a 1-tap manual override pill.
-  5. **Interactive 365-Dot Matrix Year Grid**: Adds a Nothing OS / teenage engineering-inspired `Orbital Ring ⇄ 365-Dot Matrix` toggle on the Year & Season Progress card where elapsed days glow cyan, Today pulses white-hot, and both current-year and recurring annual milestones shine as interactive gold stars.
-- **Target Audience / Persona**: Designers, engineers, planners, and horology enthusiasts who appreciate tactile hardware-inspired interfaces (Leica camera dials, luxury watch crowns, dot-matrix telemetry).
-- **Key Value**: Eliminates dead space and static headers while doubling daily utility with *Days Since* tracking and instant thumb-scrubbing.
+- **What It Does**: Elevates **क्षण (Kshan)** into a minimalist, Swiss-horology / Leica-inspired precision date companion with a calm **"Titanium & Ice" Monochrome Palette**, **Space Grotesk** architectural typography, a compact **52.dp frameless Crown Scrubber**, and rock-solid calendar/leap-year math.
+- **Target Audience / Persona**: Users who appreciate quiet luxury hardware aesthetics, zero visual clutter, and exact calendar calculations.
+- **Key Value**: Every screen fits comfortably without vertical squeezing or text collisions, user data upgrades safely via non-destructive SQLite migration, and recurring annual milestones behave accurately across leap years, today boundaries, and future years.
 
 ---
 
 ## 2. User Experience & Visual Design
 
-- **Key User Flows**:
-  1. **Thumb Scrubbing on Span & Shift**: User selects `Start Date` or `End Date` on the ruler target pill (or scrubs `Days to Shift` on the Shift screen) -> drags thumb left or right across luminous millimeter ticks -> `change.consume()` isolates the drag, every 14dp tick crossed fires `HapticFeedbackType.TextHandleMove`, dragging left advances `+1 day` (dragging right steps `−1 day`), and spins the hero counter and timeline arc live.
-  2. **Exploring Temporal Context**: Below the hero number, a curved neon arc visually bridges Start and End dates with a glowing `Today` orb. Swiping the 3-card micro-carousel underneath reveals:
-     - *Card 1 — Human Rhythm*: `3 Weeks, 5 Days • 624 Hours • 37,440 Mins`
-     - *Card 2 — Cosmic & Natural Rhythm*: `0.88 Lunar Cycles • 5.2 Workweeks`
-     - *Card 3 — Life & Solar Perspective*: `7.1% of a Solar Year • ~2.69M Heartbeats`
-  3. **Capturing a Present Kshan (`वर्तमान क्षण`)**: User taps the top-left `क्षण` squircle -> a floating glass card (`zIndex(10f)`) glides down over the top of the screen with a dim backdrop scrim, showing live daylight/day progress (e.g., `Today Elapsed: 64.28%`), current Indian Ritu (*Sharad Ritu • Autumn*), an optional note field, and a **"Capture This Kshan"** button that saves the current timestamp with `category = "Kshan"` and opens it in Countdowns where it naturally defaults to `Days Since (+)` mode.
-  4. **Abhinav Yaduvanshi Vision Showcase (`✦ Vision` Badge)**: User taps the gold-and-cyan **`✦ Vision`** pill -> opens a full-bleed glass showcase modal with an interactive orbital chronometer emblem, animated signature badge for **Abhinav Yaduvanshi**, his vision statement for *क्षण*, interactive kinetic telemetry badges, and spring-physics card reveals.
-  5. **Switching `Count Down (−)` / `Days Since (+)` & Year Grid Inspection**: In Countdowns, each selected event automatically resolves its default mode (`Days Since +` for `Kshan` or passed one-off events; `Count Down −` with next-year rollover for recurring holidays/birthdays), and users can tap `− Count Down | + Days Since` to override it. In Widgets & Insights, toggling `365 Dots` renders all 365/366 days of the year with gold star markers for both current-year and projected annual milestones; tapping any dot displays that day's date and milestone details.
+### Visual Identity & Theme ("Titanium & Ice")
+- **Surfaces & Borders**:
+  - **Background**: Deep OLED Obsidian (`#030509` / `#070B12`).
+  - **Card Surface**: Unified Obsidian Glass (`#0A0E17` at `85%` alpha).
+  - **Default Border**: Uniform `0.8.dp` Titanium Hairline (`Color.White.copy(alpha = 0.10f)`).
+  - **Active / Selected Accent**: Subtle **Ice Cyan (`#38BDF8`)** for primary active focus and **Warm Champagne (`#E5C158`)** for solar/milestone accents—eliminating simultaneous magenta, pink, bright yellow, purple, and green borders.
+- **Typography & Hierarchy**:
+  - **Architectural UI & Labels**: Locally bundled **Space Grotesk** (`Regular 400` & `SemiBold 600`) with OFL attribution replaces `Comic Neue` across all headers, cards, pills, and descriptions (and `comic_neue` font files are removed).
+  - **Tabular Numerals & Dates**: **Courier Prime Bold** (`tnum`) for all hero numbers, dates, countdown digits, percentages, and timestamps.
+  - **Brand Emblem**: **Kalam Bold** strictly isolated to the Devanagari `क्षण` emblem.
 
-- **Visual Identity & Theme**:
-  - *Aesthetic Direction*: Horological Cyber-Sculpture (Leica camera knurling + luxury watch complication + teenage engineering dot-matrix telemetry).
-  - *Color Palette & Mood*:
-    - `--background`: `#050811` (Deep Obsidian Void)
-    - `--surface-glass`: `#0B101E` at 85% opacity with top-lit specular borders
-    - `--primary`: `#00F5D4` (Electric Cyan for active ticks, elapsed year dots, and primary arcs)
-    - `--secondary`: `#A855F7` (Cosmic Purple for secondary date anchors and Ritu badges)
-    - `--accent-gold`: `#FFD700` (Solar Gold for milestone stars on the 365-dot matrix, `✦ Vision` badge highlights, and Present Kshan capture accents)
-  - *Typography & Hierarchy*:
-    - **Kalam Bold**: Exclusively for the `क्षण` Devanagari glyph and `वर्तमान क्षण` emblem.
-    - **Comic Neue (Regular & Bold)**: Expressive titles, philosophy cards, carousel labels, and interactive pills.
-    - **Courier Prime (Regular & Bold)**: All ruler tick numbers, live spinning hero counters, `HH:MM:SS` chronometers, percentages, and 365-dot telemetry coordinates.
+### De-Cluttered Screen Flows
+1. **Top Header (`MainActivity`)**:
+   - Displays the frosted `क्षण` squircle and clean `Kshan` + `Precision Date Companion` title (removing `"• वर्तमान"` next to `Kshan`).
+   - Top-right **`✦ Vision`** pill styled in subtle Titanium & Warm Champagne (`#E5C158` / `#E2E8F0`).
+2. **Span (Difference) & Shift (Date Math) Screens**:
+   - **Connected Date Cards**: Quiet Obsidian Glass cards (`#0A0E17` @ 85%) with `0.8.dp` Titanium hairlines; only the active scrub target card gets a subtle `0.8.dp` Ice Cyan (`#38BDF8`) border.
+   - **Compact 52.dp Frameless Crown Scrubber**: A sleek `52.dp` horizontal strip with `[ Start | End ]` (or `[ Base | Shift ]`) on the left and smooth sub-tick titanium ruler marks (`dragAccumulatorPx % tickSpacingPx`) with a single white center needle on the right. Includes `0..9999` hard boundary clamping, spring snap-back on finger release, 16ms haptic throttling, and TalkBack increment/decrement semantics. All colliding footer instruction text is deleted.
+   - **Clean Hero Readout**: Deletes the overlapping curved rainbow arc and `"TODAY AT X% OF SPAN"` row. The Hero Number (`20`) or Result Date (`Sunday, October 25, 2026`) sits in generous negative space over a soft monochrome/ice-cyan radial glow.
+   - **Single-Line Frosted 3-Metric Strip**: Replaces the 130.dp `HorizontalPager` with a single-line frosted strip below the hero readout:
+     - `2w 6d  •  14 Workdays  •  480 Hours` (computed from exact business-day math).
+3. **`वर्तमान क्षण` Floating Overlay & `✦ Vision` Creator Studio**:
+   - **`PresentKshanDropdownCard`**: Uses `BackHandler` + `imePadding()`, a refined Warm Champagne (`#E5C158`) solar progress bar, and quiet titanium glass cards.
+   - **`DeveloperVisionModal`**: Constrains the rotating dashed orbital rings strictly inside the top `120.dp` `क्षण` emblem box so they never overlap or cut through the `"Abhinav Yaduvanshi"` title text. Replaces multi-colored card icons with unified Champagne (`#E5C158`) and brushed Silver (`#CBD5E1`) accents, running the animation loop strictly while `visible == true`.
 
 ---
 
 ## 3. Key Product Decisions & Trade-Offs
 
-- **Decision 1 — Isolated Pointer Input & Inverted Tape-Measure Delta on `MechanicalScrubRuler`**:
-  - *Chosen Approach*: Call `change.consume()` inside `detectHorizontalDragGestures` and subtract `dragAmount` from `dragAccumulatorPx` (`dragAccumulatorPx -= dragAmount`). Every time `abs(dragAccumulatorPx) >= tickSpacingPx`, emit `steps = (dragAccumulatorPx / tickSpacingPx).toInt()` and subtract `steps * tickSpacingPx` from the accumulator.
-  - *Why*: Pulling the tape left (`dragAmount < 0`) yields a positive `dragAccumulatorPx`, incrementing the date (`+1 day`) as higher numbers scroll under the fixed center needle, while consuming all horizontal events prevents any conflict with the 3-card `HorizontalPager` below.
-- **Decision 2 — Per-Event Derived Chronometer Mode (`overrideCountUpMode: Boolean? = null`)**:
-  - *Chosen Approach*: Store `overrideCountUpMode: Boolean? = null` in `ChronoUiState` (resetting to `null` whenever `selectActiveEvent`, `pinEvent`, or `addNewEvent` is called). Compute effective `isCountUpMode = overrideCountUpMode ?: shouldDefaultToCountUp(eventCategory, target, now)` where `shouldDefaultToCountUp` is `true` for `category.equals("Kshan", ignoreCase = true)` or when `target.isBefore(now)` for non-recurring categories.
-  - *Why*: Selecting a future event (like *New Year 2027*) after capturing a *Kshan* immediately displays a proper `Count Down (−)`, while selecting a captured *Kshan* or past launch date automatically displays `Days Since (+)`—and tapping the toggle pill sets `overrideCountUpMode` for manual inspection.
-- **Decision 3 — Leap-Safe Annual Milestone Projection on the 365-Dot Matrix**:
-  - *Chosen Approach*: When building the `dayOfYear -> List<ChronoEvent>` lookup for `YearDotMatrixGrid`, check if `event.category` is recurring (`Holiday`, `Birthday`, `Anniversary`, `Festival`, `Personal`). If so, project its month and day onto `currentYear` using `YearMonth.of(currentYear, zdt.month).let { ym -> ym.atDay(zdt.dayOfMonth.coerceAtMost(ym.lengthOfMonth())).dayOfYear }`; otherwise, include it if `zdt.year == currentYear`.
-  - *Why*: Ensures annual birthdays (even with a 2006 birth year or Feb 29 leap day) and holidays rolled into 2027 always illuminate their corresponding day dot in the current year's 365-dot matrix.
+- **Decision 1: Non-Destructive `MIGRATION_1_2` on `chrono_events`**
+  - *Chosen Approach*: Upgrade `ChronoDatabase` to `version = 2` using `.addMigrations(MIGRATION_1_2)` without `.fallbackToDestructiveMigration()`:
+    ```kotlin
+    val MIGRATION_1_2 = object : Migration(1, 2) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE chrono_events ADD COLUMN repeatsYearly INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("UPDATE chrono_events SET repeatsYearly = 1 WHERE lower(category) IN ('birthday','holiday','anniversary')")
+        }
+    }
+    ```
+  - *Why*: Preserves all existing user countdowns while automatically enabling yearly repeat for existing Birthdays, Holidays, and Anniversaries.
+- **Decision 2: Future-Safe `MonthDay.from(raw).atYear(...)` & Dedicated `"Today ✦"` State**
+  - *Chosen Approach*:
+    ```kotlin
+    val today = now.toLocalDate()
+    if (isCountUpMode || !repeatsYearly || !raw.toLocalDate().isBefore(today)) {
+        return raw to false
+    }
+    val md = MonthDay.from(raw)
+    var d = md.atYear(today.year)
+    if (d.isBefore(today)) d = md.atYear(today.year + 1)
+    return ZonedDateTime.of(d, raw.toLocalTime(), raw.zone) to true
+    ```
+    And in `calculateCountdown(now, target)`: if `target.toLocalDate() == now.toLocalDate()` and `!now.toInstant().isBefore(target.toInstant())`, return `CountdownStatus.TODAY_CELEBRATION` (`"Today ✦"`) for the entire calendar day.
+  - *Why*: Prevents future recurring dates (e.g., Dec 2027) from being pulled backward to Dec 2026, preserves Feb 29 on leap years (`2028`) after clamping to Feb 28 on non-leap years (`2027`), and celebrates today's milestone all day long.
 
 ---
 
@@ -76,50 +101,54 @@ Elevate **क्षण (Kshan)** from a utility date calculator into a tactile, 
 
 ### Architecture & Component Diagram
 
-```text
+```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                    MainActivity (Root Box Layered Stack)                   │
-│  ┌───────────────────────────────────┐  ┌───────────────────────────────┐  │
-│  │  [क्षण Squircle Tap]              │  │  [✦ Vision Pill Tap]          │  │
-│  │  ▼ Floating PresentKshanOverlay   │  │  ▼ DeveloperVisionModal       │  │
-│  │    (zIndex = 10f + Dismiss Scrim) │  │  • Abhinav Yaduvanshi Bio     │  │
-│  │  • Today Elapsed % & Sun Arc      │  │  • Interactive Orbital Canvas │  │
-│  │  • Indian Ritu (ऋतु) Telemetry    │  │  • Kinetic Vision Cards       │  │
-│  │  • "Capture This Kshan" -> Room   │  │                               │  │
-│  └───────────────────────────────────┘  └───────────────────────────────┘  │
-└───────────────────┬────────────────────────────────────┬───────────────────┘
-                    │                                    │
-       ┌────────────┴────────────┐          ┌────────────┴────────────┐
-       ▼                         ▼          ▼                         ▼
-┌──────────────────────────┐  ┌──────────────────────┐  ┌────────────────────┐
-│ Difference & DateMath    │  │ CountdownScreen      │  │ WidgetsDashboard   │
-│ • MechanicalScrubRuler   │  │ • Per-Event Derived  │  │ • YearProgressCard │
-│   (change.consume() +    │  │   CountDown (−) vs   │  │   [Ring ⇄ 365 Dots]│
-│   left drag = +1 day)    │  │   DaysSince (+) Mode │  │ • Annual Projected │
-│ • TemporalConstellation  │  │ • Holiday/Birthday   │  │   Gold Milestone   │
-│   Hero (Timeline Arc +   │  │   Auto-Rollover      │  │   Stars on Grid    │
-│   Today Dot + 3-Card     │  │                      │  │                    │
-│   Human Rhythm Pager)    │  │                      │  │                    │
-└──────────────────────────┘  └──────────────────────┘  └────────────────────┘
+│                        MainActivity (KshanApp)                             │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ KshanHeader: [क्षण Squircle]  "Kshan"              [✦ Vision Pill]   │  │
+│  └───────────────────┬───────────────────────────────────────┬──────────┘  │
+│                      │ (zIndex 10f, BackHandler, imePadding) │ (zIndex 20f)│
+│                      ▼                                       ▼             │
+│        ┌───────────────────────────┐           ┌─────────────────────────┐ │
+│        │ PresentKshanDropdownCard  │           │  DeveloperVisionModal   │ │
+│        │ • Champagne Solar Bar     │           │  • 120.dp Emblem Orbit  │ │
+│        │ • Titanium Glass Cards    │           │  • Champagne & Silver   │ │
+│        └───────────────────────────┘           └─────────────────────────┘ │
+└──────────────────────────────────────┬─────────────────────────────────────┘
+                                       │
+         ┌─────────────────────────────┼─────────────────────────────┐
+         ▼                             ▼                             ▼
+┌─────────────────────┐     ┌─────────────────────┐     ┌─────────────────────────┐
+│ Difference / Shift  │     │  CountdownScreen    │     │ WidgetsDashboardScreen  │
+│ • Titanium Cards    │     │ • Hero Timepiece    │     │ • 365-Dot Year Matrix   │
+│ • 52.dp Frameless   │     │   (Today ✦ State &  │     │   (Uses event.          │
+│   Crown Scrubber    │     │    Past-Only +Mode) │     │    repeatsYearly)       │
+│   (Clamp + Snap +   │     │ • Add Sheet with    │     │ • MY_PACKAGE_REPLACED   │
+│    TalkBack)        │     │   repeatsYearly     │     │   Widget Resync         │
+│ • Clean Hero Number │     │   Toggle            │     │                         │
+│ • 1-Line 3-Metric   │     │                     │     │                         │
+│   Strip (Exact      │     │                     │     │                         │
+│   Workdays)         │     │                     │     │                         │
+└─────────┬───────────┘     └──────────┬──────────┘     └────────────┬────────────┘
+          └────────────────────────────┼─────────────────────────────┘
+                                       ▼
+┌────────────────────────────────────────────────────────────────────────────┐
+│            ChronoViewModel & TimeEngine + Room DB (v2 MIGRATION_1_2)       │
+│  • ChronoEvent(..., val repeatsYearly: Boolean = false)                    │
+│  • resolveEffectiveTarget(now, raw, repeatsYearly, isCountUpMode)          │
+│  • calculateCompactMetricsStrip(start, end, totalDays)                     │
+│  • JUnit & Robolectric Suite: TimeEngineTest + MigrationTest               │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Data Model & State
-- **`TimeEngine` Extensions**:
-  - `isRecurringCategory(category: String, title: String): Boolean`: Identifies `Holiday`, `Birthday`, `Anniversary`, `Festival`, or `Personal` annual milestones.
-  - `resolveEffectiveTarget(target: ZonedDateTime, now: ZonedDateTime, category: String, title: String, isCountUpMode: Boolean): Pair<ZonedDateTime, Boolean>`: When `!isCountUpMode && target.isBefore(now) && isRecurringCategory(category, title)`, advances `target` year-by-year until `!rolled.isBefore(now)` and returns `Pair(rolled, true)`.
-  - `calculateElapsedSince(now: ZonedDateTime, past: ZonedDateTime): CountdownTelemetry`: Computes live `days`, `hours`, `minutes`, `seconds` elapsed (`abs(Duration.between(past, now))`) for `Days Since (+)` mode.
-  - `calculatePresentKshanTelemetry(now: ZonedDateTime): PresentKshanTelemetry`: Computes exact percentage of today elapsed (`0.00%–100.00%`), elapsed `HH:MM:SS` today, current Indian **Ritu (ऋतु)** (*Vasanta, Grishma, Varsha, Sharad, Hemanta, Shishira*), and solar phase label.
-  - `calculateTemporalConstellation(start: LocalDate, end: LocalDate, totalDays: Long, today: LocalDate)`: Computes the normalized `todayProgress` (`0f..1f`) along the Start→End span plus the 3 Human/Cosmic Rhythm telemetry cards.
-
 ### Interactive Component & State Mapping
-- **Mechanical Scrubbing Ruler (`MechanicalScrubRuler`)**:
-  - Consumes horizontal drag gestures via `change.consume()` and maps leftward thumb movement (`dragAmount < 0`) to positive steps (`+1 day`).
-  - *Span Screen*: Includes `ScrubTarget` toggle (`Start Date` vs `End Date`, defaulting to `End Date`).
-  - *Shift Screen*: Scrubs `Days to Shift` (`0..9999`) or `Base Date` via a quick selector pill.
-- **Floating Present Moment Overlay (`PresentKshanDropdownCard`)**:
-  - Placed in the root `Box` of `KshanApp` with `Modifier.zIndex(10f)` and a semi-transparent backdrop scrim (`Color.Black.copy(alpha = 0.55f)`) so opening it never shifts the underlying screen layout.
-  - Tapping **"Capture This Kshan"** saves a `ChronoEvent` with `category = "Kshan"`, resets `overrideCountUpMode = null` (so the new event automatically opens in `Days Since (+)` mode), and navigates to the `COUNTDOWN` tab.
-- **Creator & Vision Studio (`DeveloperVisionModal`)**:
-  - Triggered by tapping the **`✦ Vision`** header pill. Displays an interactive orbital particle gyroscope, **Abhinav Yaduvanshi** creator profile, interactive design-philosophy cards, and a live pyrotechnic spark burst trigger.
-- **365-Dot Matrix Year Grid (`YearDotMatrixGrid`)**:
-  - Pass `savedEvents` into `WidgetsDashboardScreen` so `YearDotMatrixGrid` projects recurring annual milestones and current-year milestones onto their exact `dayOfYear` dots (`1..365/366`). Tapping any dot selects that day and displays its date and any matching milestone badge.
+1. **Call-Site Propagation of `repeatsYearly`**:
+   - `ChronoUiState` stores `activeEventRepeatsYearly: Boolean = true`.
+   - `ChronoViewModel` updates `activeEventRepeatsYearly` from `pinnedEvent`, `selectActiveEvent`, `addNewEvent`, and `setCountdownTarget`, and resets `overrideCountUpMode = null` whenever an event changes or `!TimeEngine.canUseCountUpMode(now, rawTarget, category)` becomes true.
+   - `CountdownScreen` passes `event.repeatsYearly` into `TimeEngine.resolveEffectiveTarget` for every `SavedCountdownCard` and provides a `"Repeats Yearly"` toggle in `SurpriseAddCountdownSheet` (auto-checked when selecting `Birthday`, `Holiday`, or `Anniversary`).
+   - `ChronoWidgetProvider` passes `event.repeatsYearly` into `TimeEngine.resolveEffectiveTarget` when computing the home screen widget's target instant and listens for `Intent.ACTION_MY_PACKAGE_REPLACED` in both `AndroidManifest.xml` and `onReceive`.
+   - `YearDotMatrixGrid` passes `event.repeatsYearly` into `TimeEngine.projectEventDayOfYear(zdt, event.repeatsYearly, currentYear)`.
+2. **Crown Scrubber Physics, Clamping, Snap-Back & Accessibility**:
+   - Accepts `minValue: Long? = null`, `maxValue: Long? = null`, and `currentNumericValue: Long? = null` so Shift mode (`0..9999`) clamps `dragAccumulatorPx = 0f` at the boundaries without shifting ticks or firing haptics.
+   - Uses `var isDragging by remember { mutableStateOf(false) }` and `animateFloatAsState` to smoothly spring-snap the sub-tick offset `(dragAccumulatorPx % stepPx)` back to `0f` when `onDragEnd` or `onDragCancel` fires.
+   - Adds `Modifier.semantics` with `customActions` (`Increment (+1)` and `Decrement (-1)`) and `setProgress` so TalkBack users can scrub dates and day shifts effortlessly.

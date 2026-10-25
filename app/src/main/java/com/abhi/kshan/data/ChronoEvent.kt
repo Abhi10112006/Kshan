@@ -1,5 +1,6 @@
 package com.abhi.kshan.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -9,7 +10,9 @@ data class ChronoEvent(
     val id: Long = 0,
     val title: String,
     val targetIsoString: String, // ISO-8601 formatted string e.g. "2027-01-01T00:00:00Z"
-    val category: String, // "Holiday", "Celebration", "Goal", "Milestone", "Personal"
+    val category: String, // "Holiday", "Celebration", "Birthday", "Anniversary", "Goal", "Milestone", "Personal", "Kshan"
     val isPinned: Boolean = false,
-    val createdAtIsoString: String
+    val createdAtIsoString: String,
+    @ColumnInfo(defaultValue = "0")
+    val repeatsYearly: Boolean = false
 )

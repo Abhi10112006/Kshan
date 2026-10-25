@@ -1,0 +1,16 @@
+SIL OPEN FONT LICENSE (OFL 1.1) — BUNDLED FONTS ATTRIBUTION
+
+1. Space Grotesk
+   Copyright (c) 2018 Florian Karsten (floriankarsten.com)
+   Licensed under the SIL Open Font License, Version 1.1 (https://scripts.sil.org/OFL)
+   Bundled resource: res/font/space_grotesk.ttf
+
+2. Courier Prime
+   Copyright (c) 2013 Quote-Unquote Apps (quoteunquoteapps.com)
+   Licensed under the SIL Open Font License, Version 1.1 (https://scripts.sil.org/OFL)
+   Bundled resource: res/font/courier_prime.ttf
+
+3. Kalam
+   Copyright (c) 2014 Indian Type Foundry (indiantypefoundry.com)
+   Licensed under the SIL Open Font License, Version 1.1 (https://scripts.sil.org/OFL)
+   Bundled resource: res/font/kalam.ttf

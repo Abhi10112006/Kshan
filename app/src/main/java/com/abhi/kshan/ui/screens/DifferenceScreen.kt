@@ -1,5 +1,6 @@
 package com.abhi.kshan.ui.screens
 
+import android.view.HapticFeedbackConstants
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,14 +34,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,22 +55,16 @@ import com.abhi.kshan.ui.components.MechanicalScrubRuler
 import com.abhi.kshan.ui.components.ModernCapsuleChip
 import com.abhi.kshan.ui.components.ModernToggle
 import com.abhi.kshan.ui.components.TemporalConstellationHero
-import com.abhi.kshan.ui.theme.ComicNeueFontFamily
-import com.abhi.kshan.ui.theme.NeonCyan
-import com.abhi.kshan.ui.theme.NeonPurple
+import com.abhi.kshan.ui.theme.IceCyan
 import com.abhi.kshan.ui.theme.SpaceCard
-import com.abhi.kshan.ui.theme.SpaceCardBorder
+import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TabularMonoFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
+import com.abhi.kshan.ui.theme.TitaniumHairline
 import com.abhi.kshan.viewmodel.ChronoUiState
 import java.time.LocalDate
-
-import android.view.HapticFeedbackConstants
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.platform.LocalView
 
 @Composable
 fun DifferenceScreen(
@@ -96,7 +93,6 @@ fun DifferenceScreen(
         )
     }
 
-    val activeScrubAccent = if (scrubTargetIndex == 0) NeonCyan else NeonPurple
     val activeScrubDate = if (scrubTargetIndex == 0) uiState.diffStart else uiState.diffEnd
 
     Column(
@@ -105,14 +101,15 @@ fun DifferenceScreen(
             .verticalScroll(scrollState),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // 1. Connected Date Cards with Floating Center ⇄ Badge
+        // 1. Connected Date Cards (Only active scrub target gets subtle Ice Cyan border)
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             ConnectedDateCards(
                 connectorLabel = "⇄",
-                accentColor = NeonCyan,
+                accentColor = IceCyan,
                 startContent = {
+                    val isStartSelected = scrubTargetIndex == 0
                     FrostedGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -124,37 +121,40 @@ fun DifferenceScreen(
                                 showStartPicker = true
                             }
                             .testTag("diff_start_button"),
-                        borderColor = NeonCyan,
-                        glowAlpha = if (scrubTargetIndex == 0) 0.65f else 0.4f,
-                        cornerRadius = 24.dp
+                        borderColor = if (isStartSelected) IceCyan else TitaniumHairline,
+                        glowAlpha = if (isStartSelected) 0.65f else 0.2f,
+                        cornerRadius = 22.dp
                     ) {
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(30.dp)
                                         .clip(CircleShape)
-                                        .background(NeonCyan.copy(alpha = 0.15f)),
+                                        .background(
+                                            if (isStartSelected) IceCyan.copy(alpha = 0.14f)
+                                            else SpaceCard
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.CalendarToday,
                                         contentDescription = null,
-                                        tint = NeonCyan,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = if (isStartSelected) IceCyan else TextSecondary,
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = "Start Date",
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = NeonCyan
+                                    color = if (isStartSelected) IceCyan else TextSecondary
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
                                 text = uiState.diffStart.format(TimeEngine.SHORT_DATE_FORMATTER),
@@ -165,7 +165,7 @@ fun DifferenceScreen(
                             )
                             Text(
                                 text = uiState.diffStart.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
-                                fontFamily = ComicNeueFontFamily,
+                                fontFamily = SpaceGroteskFontFamily,
                                 fontSize = 12.sp,
                                 color = TextSecondary
                             )
@@ -173,6 +173,7 @@ fun DifferenceScreen(
                     }
                 },
                 endContent = {
+                    val isEndSelected = scrubTargetIndex == 1
                     FrostedGlassCard(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -184,37 +185,40 @@ fun DifferenceScreen(
                                 showEndPicker = true
                             }
                             .testTag("diff_end_button"),
-                        borderColor = NeonPurple,
-                        glowAlpha = if (scrubTargetIndex == 1) 0.65f else 0.4f,
-                        cornerRadius = 24.dp
+                        borderColor = if (isEndSelected) IceCyan else TitaniumHairline,
+                        glowAlpha = if (isEndSelected) 0.65f else 0.2f,
+                        cornerRadius = 22.dp
                     ) {
                         Column {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(30.dp)
                                         .clip(CircleShape)
-                                        .background(NeonPurple.copy(alpha = 0.15f)),
+                                        .background(
+                                            if (isEndSelected) IceCyan.copy(alpha = 0.14f)
+                                            else SpaceCard
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Flag,
                                         contentDescription = null,
-                                        tint = NeonPurple,
-                                        modifier = Modifier.size(16.dp)
+                                        tint = if (isEndSelected) IceCyan else TextSecondary,
+                                        modifier = Modifier.size(15.dp)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
                                     text = "End Date",
-                                    fontFamily = ComicNeueFontFamily,
+                                    fontFamily = SpaceGroteskFontFamily,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = NeonPurple
+                                    color = if (isEndSelected) IceCyan else TextSecondary
                                 )
                             }
 
-                            Spacer(modifier = Modifier.height(14.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
                                 text = uiState.diffEnd.format(TimeEngine.SHORT_DATE_FORMATTER),
@@ -225,7 +229,7 @@ fun DifferenceScreen(
                             )
                             Text(
                                 text = uiState.diffEnd.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
-                                fontFamily = ComicNeueFontFamily,
+                                fontFamily = SpaceGroteskFontFamily,
                                 fontSize = 12.sp,
                                 color = TextSecondary
                             )
@@ -235,12 +239,12 @@ fun DifferenceScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 2. Tactile Mechanical Time Wheel / Scrubbing Ruler with Start / End Target Selector Pill
+        // 2. Compact 52.dp Frameless Crown Scrubber
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
             MechanicalScrubRuler(
-                targetOptions = listOf("Start Date", "End Date"),
+                targetOptions = listOf("Start", "End"),
                 selectedTargetIndex = scrubTargetIndex,
                 onTargetSelected = { idx ->
                     scrubTargetIndex = idx
@@ -250,7 +254,7 @@ fun DifferenceScreen(
                     )
                 },
                 activeValueReadout = activeScrubDate.format(TimeEngine.SHORT_DATE_FORMATTER),
-                accentColor = activeScrubAccent,
+                accentColor = IceCyan,
                 onStepDelta = { deltaDays ->
                     if (scrubTargetIndex == 0) {
                         onStartChanged(uiState.diffStart.plusDays(deltaDays.toLong()))
@@ -262,12 +266,12 @@ fun DifferenceScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
-        // 3. Preset Chips with Edge-to-Edge scrolling (PaddingValues horizontal = 24.dp)
+        // 3. Preset Chips with Edge-to-Edge scrolling
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 24.dp),
+            contentPadding = PaddingValues(horizontal = 22.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(presets) { (label, targetDate) ->
@@ -279,7 +283,7 @@ fun DifferenceScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         // 4. Skip Weekends Switch Card
         Box(modifier = Modifier.padding(horizontal = 22.dp)) {
@@ -291,8 +295,8 @@ fun DifferenceScreen(
                         onExcludeWeekendsChanged(!uiState.diffExcludeWeekends)
                     }
                     .testTag("diff_weekends_toggle_row"),
-                borderColor = if (uiState.diffExcludeWeekends) NeonCyan else SpaceCardBorder,
-                glowAlpha = if (uiState.diffExcludeWeekends) 0.45f else 0.2f,
+                borderColor = if (uiState.diffExcludeWeekends) IceCyan else TitaniumHairline,
+                glowAlpha = if (uiState.diffExcludeWeekends) 0.6f else 0.2f,
                 cornerRadius = 20.dp
             ) {
                 Row(
@@ -306,30 +310,30 @@ fun DifferenceScreen(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(36.dp)
+                                .size(34.dp)
                                 .clip(CircleShape)
-                                .background(if (uiState.diffExcludeWeekends) NeonCyan.copy(alpha = 0.2f) else SpaceCard),
+                                .background(if (uiState.diffExcludeWeekends) IceCyan.copy(alpha = 0.16f) else SpaceCard),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.WorkHistory,
                                 contentDescription = null,
-                                tint = if (uiState.diffExcludeWeekends) NeonCyan else TextMuted,
-                                modifier = Modifier.size(18.dp)
+                                tint = if (uiState.diffExcludeWeekends) IceCyan else TextMuted,
+                                modifier = Modifier.size(17.dp)
                             )
                         }
                         Spacer(modifier = Modifier.width(12.dp))
                         Column {
                             Text(
                                 text = "Skip Weekends",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontFamily = SpaceGroteskFontFamily,
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.SemiBold,
                                 color = TextPrimary
                             )
                             Text(
                                 text = "Counts Monday to Friday only",
-                                fontFamily = ComicNeueFontFamily,
+                                fontFamily = SpaceGroteskFontFamily,
                                 fontSize = 12.sp,
                                 color = TextMuted
                             )
@@ -345,18 +349,18 @@ fun DifferenceScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
-        // 5. Temporal Constellation Hero (Visual Timeline Arc + Hero Number + 3-Card Human Rhythm Carousel)
+        // 5. Clean Hero Readout + Single-Line 3-Metric Strip ("2w 6d • 14 Workdays • 480 Hours")
         TemporalConstellationHero(
             startDate = uiState.diffStart,
             endDate = uiState.diffEnd,
             daysCount = uiState.differenceResult.daysCount,
-            accentColor = NeonCyan
+            accentColor = IceCyan
         ) {
             AnimatedContent(
                 targetState = uiState.differenceResult.daysCount,
-                transitionSpec = { fadeIn(tween(250)) togetherWith fadeOut(tween(200)) },
+                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(180)) },
                 label = "diff_count_anim"
             ) { count ->
                 val displayCount = if (uiState.differenceResult.isSameDay) "0" else "$count"
@@ -364,14 +368,14 @@ fun DifferenceScreen(
                     mainValue = displayCount,
                     label = if (uiState.diffExcludeWeekends) "Working Days" else "Total Days",
                     breakdownText = uiState.differenceResult.breakdownText,
-                    accentColor = NeonCyan,
+                    accentColor = IceCyan,
                     testTag = "diff_main_number"
                 )
             }
         }
 
-        // 6. 120.dp Bottom Spacer to prevent navigation dock collision
-        Spacer(modifier = Modifier.height(120.dp))
+        // 6. Bottom Spacer for Floating Glass Dock
+        Spacer(modifier = Modifier.height(110.dp))
     }
 
     if (showStartPicker) {

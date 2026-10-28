@@ -1,51 +1,53 @@
 package com.abhi.kshan.ui.screens
 
-import android.view.HapticFeedbackConstants
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.Flag
-import androidx.compose.material.icons.filled.WorkHistory
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.BookmarkAdd
+import androidx.compose.material.icons.outlined.DateRange
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.abhi.kshan.engine.TemporalContextCardItem
 import com.abhi.kshan.engine.TimeEngine
 import com.abhi.kshan.ui.components.AmbientHeroResult
 import com.abhi.kshan.ui.components.ConnectedDateCards
@@ -53,335 +55,65 @@ import com.abhi.kshan.ui.components.CyberDatePickerDialog
 import com.abhi.kshan.ui.components.FrostedGlassCard
 import com.abhi.kshan.ui.components.MechanicalScrubRuler
 import com.abhi.kshan.ui.components.ModernCapsuleChip
-import com.abhi.kshan.ui.components.ModernToggle
-import com.abhi.kshan.ui.components.TemporalConstellationHero
-import com.abhi.kshan.ui.theme.IceCyan
-import com.abhi.kshan.ui.theme.SpaceCard
+import com.abhi.kshan.ui.theme.JetBrainsMonoFontFamily
+import com.abhi.kshan.ui.theme.KshanBorder
+import com.abhi.kshan.ui.theme.KshanCyan
+import com.abhi.kshan.ui.theme.KshanPillShape
+import com.abhi.kshan.ui.theme.KshanSurface
+import com.abhi.kshan.ui.theme.MetricLabelTextStyle
 import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
-import com.abhi.kshan.ui.theme.TabularMonoFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
-import com.abhi.kshan.ui.theme.TitaniumHairline
 import com.abhi.kshan.viewmodel.ChronoUiState
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
 
 @Composable
 fun DifferenceScreen(
     uiState: ChronoUiState,
     onStartChanged: (LocalDate) -> Unit,
     onEndChanged: (LocalDate) -> Unit,
+    onSwapDates: () -> Unit = {},
     onExcludeWeekendsChanged: (Boolean) -> Unit,
+    onFocusPaceChanged: (Int) -> Unit = {},
+    onSaveAsMilestone: (String, LocalDate) -> Unit = { _, _ -> },
     onHudInteraction: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val view = LocalView.current
-    var showStartPicker by remember { mutableStateOf(false) }
-    var showEndPicker by remember { mutableStateOf(false) }
-    // 0 = Scrub Start Date, 1 = Scrub End Date (defaults to End Date)
-    var scrubTargetIndex by remember { mutableIntStateOf(1) }
+    var showStartPicker by rememberSaveable { mutableStateOf(false) }
+    var showEndPicker by rememberSaveable { mutableStateOf(false) }
+    var activeRulerTarget by rememberSaveable { mutableIntStateOf(1) } // Default scrub target = Horizon
 
-    val scrollState = rememberScrollState()
+    val formatter = remember { DateTimeFormatter.ofPattern("MMM dd, yyyy") }
+    val shortFormatter = remember { DateTimeFormatter.ofPattern("MMM d") }
+    val res = uiState.differenceResult
+    val today = remember { LocalDate.now() }
 
-    val presets = remember(uiState.diffStart) {
-        listOf(
-            Pair("Today", LocalDate.now()),
-            Pair("+1 Week", uiState.diffStart.plusWeeks(1)),
-            Pair("+1 Month", uiState.diffStart.plusMonths(1)),
-            Pair("+3 Months", uiState.diffStart.plusMonths(3)),
-            Pair("End of Year", LocalDate.of(uiState.diffStart.year, 12, 31))
+    val focusMetrics = remember(uiState.diffStart, uiState.diffEnd, uiState.selectedFocusHoursPerDay) {
+        TimeEngine.calculateRunwayFocusMetrics(
+            start = uiState.diffStart,
+            end = uiState.diffEnd,
+            hoursPerDay = uiState.selectedFocusHoursPerDay
         )
     }
 
-    val activeScrubDate = if (scrubTargetIndex == 0) uiState.diffStart else uiState.diffEnd
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // 1. Connected Date Cards (Only active scrub target gets subtle Ice Cyan border)
-        Box(modifier = Modifier.padding(horizontal = 22.dp)) {
-            ConnectedDateCards(
-                connectorLabel = "⇄",
-                accentColor = IceCyan,
-                startContent = {
-                    val isStartSelected = scrubTargetIndex == 0
-                    FrostedGlassCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight()
-                            .clickable {
-                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                scrubTargetIndex = 0
-                                onHudInteraction("Tap to change your start date.")
-                                showStartPicker = true
-                            }
-                            .testTag("diff_start_button"),
-                        borderColor = if (isStartSelected) IceCyan else TitaniumHairline,
-                        glowAlpha = if (isStartSelected) 0.65f else 0.2f,
-                        cornerRadius = 22.dp
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isStartSelected) IceCyan.copy(alpha = 0.14f)
-                                            else SpaceCard
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.CalendarToday,
-                                        contentDescription = null,
-                                        tint = if (isStartSelected) IceCyan else TextSecondary,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = "Start Date",
-                                    fontFamily = SpaceGroteskFontFamily,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isStartSelected) IceCyan else TextSecondary
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Text(
-                                text = uiState.diffStart.format(TimeEngine.SHORT_DATE_FORMATTER),
-                                fontFamily = TabularMonoFontFamily,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = uiState.diffStart.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
-                                fontFamily = SpaceGroteskFontFamily,
-                                fontSize = 12.sp,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                },
-                endContent = {
-                    val isEndSelected = scrubTargetIndex == 1
-                    FrostedGlassCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight()
-                            .clickable {
-                                view.performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-                                scrubTargetIndex = 1
-                                onHudInteraction("Tap to change your destination date.")
-                                showEndPicker = true
-                            }
-                            .testTag("diff_end_button"),
-                        borderColor = if (isEndSelected) IceCyan else TitaniumHairline,
-                        glowAlpha = if (isEndSelected) 0.65f else 0.2f,
-                        cornerRadius = 22.dp
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(30.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (isEndSelected) IceCyan.copy(alpha = 0.14f)
-                                            else SpaceCard
-                                        ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Flag,
-                                        contentDescription = null,
-                                        tint = if (isEndSelected) IceCyan else TextSecondary,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Text(
-                                    text = "End Date",
-                                    fontFamily = SpaceGroteskFontFamily,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isEndSelected) IceCyan else TextSecondary
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Text(
-                                text = uiState.diffEnd.format(TimeEngine.SHORT_DATE_FORMATTER),
-                                fontFamily = TabularMonoFontFamily,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = uiState.diffEnd.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
-                                fontFamily = SpaceGroteskFontFamily,
-                                fontSize = 12.sp,
-                                color = TextSecondary
-                            )
-                        }
-                    }
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 2. Compact 52.dp Frameless Crown Scrubber
-        Box(modifier = Modifier.padding(horizontal = 22.dp)) {
-            MechanicalScrubRuler(
-                targetOptions = listOf("Start", "End"),
-                selectedTargetIndex = scrubTargetIndex,
-                onTargetSelected = { idx ->
-                    scrubTargetIndex = idx
-                    onHudInteraction(
-                        if (idx == 0) "Crown Scrubber focused on Start Date."
-                        else "Crown Scrubber focused on End Date."
-                    )
-                },
-                activeValueReadout = activeScrubDate.format(TimeEngine.SHORT_DATE_FORMATTER),
-                accentColor = IceCyan,
-                onStepDelta = { deltaDays ->
-                    if (scrubTargetIndex == 0) {
-                        onStartChanged(uiState.diffStart.plusDays(deltaDays.toLong()))
-                    } else {
-                        onEndChanged(uiState.diffEnd.plusDays(deltaDays.toLong()))
-                    }
-                },
-                testTag = "diff_mechanical_ruler"
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 3. Preset Chips with Edge-to-Edge scrolling
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 22.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(presets) { (label, targetDate) ->
-                ModernCapsuleChip(
-                    label = label,
-                    isSelected = uiState.diffEnd == targetDate,
-                    onClick = { onEndChanged(targetDate) }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // 4. Skip Weekends Switch Card
-        Box(modifier = Modifier.padding(horizontal = 22.dp)) {
-            FrostedGlassCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-                        onExcludeWeekendsChanged(!uiState.diffExcludeWeekends)
-                    }
-                    .testTag("diff_weekends_toggle_row"),
-                borderColor = if (uiState.diffExcludeWeekends) IceCyan else TitaniumHairline,
-                glowAlpha = if (uiState.diffExcludeWeekends) 0.6f else 0.2f,
-                cornerRadius = 20.dp
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .background(if (uiState.diffExcludeWeekends) IceCyan.copy(alpha = 0.16f) else SpaceCard),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.WorkHistory,
-                                contentDescription = null,
-                                tint = if (uiState.diffExcludeWeekends) IceCyan else TextMuted,
-                                modifier = Modifier.size(17.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = "Skip Weekends",
-                                fontFamily = SpaceGroteskFontFamily,
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextPrimary
-                            )
-                            Text(
-                                text = "Counts Monday to Friday only",
-                                fontFamily = SpaceGroteskFontFamily,
-                                fontSize = 12.sp,
-                                color = TextMuted
-                            )
-                        }
-                    }
-
-                    ModernToggle(
-                        checked = uiState.diffExcludeWeekends,
-                        onCheckedChange = { onExcludeWeekendsChanged(it) },
-                        testTag = "diff_weekends_toggle"
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 5. Clean Hero Readout + Single-Line 3-Metric Strip ("2w 6d • 14 Workdays • 480 Hours")
-        TemporalConstellationHero(
-            startDate = uiState.diffStart,
-            endDate = uiState.diffEnd,
-            daysCount = uiState.differenceResult.daysCount,
-            accentColor = IceCyan
-        ) {
-            AnimatedContent(
-                targetState = uiState.differenceResult.daysCount,
-                transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(180)) },
-                label = "diff_count_anim"
-            ) { count ->
-                val displayCount = if (uiState.differenceResult.isSameDay) "0" else "$count"
-                AmbientHeroResult(
-                    mainValue = displayCount,
-                    label = if (uiState.diffExcludeWeekends) "Working Days" else "Total Days",
-                    breakdownText = uiState.differenceResult.breakdownText,
-                    accentColor = IceCyan,
-                    testTag = "diff_main_number"
-                )
-            }
-        }
-
-        // 6. Bottom Spacer for Floating Glass Dock
-        Spacer(modifier = Modifier.height(110.dp))
+    val constellation = remember(uiState.diffStart, uiState.diffEnd, res.daysCount) {
+        TimeEngine.calculateTemporalConstellation(
+            start = uiState.diffStart,
+            end = uiState.diffEnd,
+            daysCount = res.daysCount
+        )
     }
 
     if (showStartPicker) {
         CyberDatePickerDialog(
             initialDate = uiState.diffStart,
-            onDateSelected = onStartChanged,
+            onDateSelected = { picked ->
+                onStartChanged(picked)
+                onHudInteraction("Origin set to ${picked.format(formatter)}")
+            },
             onDismiss = { showStartPicker = false }
         )
     }
@@ -389,8 +121,593 @@ fun DifferenceScreen(
     if (showEndPicker) {
         CyberDatePickerDialog(
             initialDate = uiState.diffEnd,
-            onDateSelected = onEndChanged,
+            onDateSelected = { picked ->
+                onEndChanged(picked)
+                onHudInteraction("Horizon set to ${picked.format(formatter)}")
+            },
             onDismiss = { showEndPicker = false }
         )
+    }
+
+    val scrollState = rememberScrollState()
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.widthIn(max = 600.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // 1. Unified Single Horizon Split Card (24.dp #121620)
+            ConnectedDateCards(
+                startContent = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showStartPicker = true }
+                            .testTag("diff_start_button"),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "FROM (ORIGIN)",
+                            style = MetricLabelTextStyle
+                        )
+                        Text(
+                            text = uiState.diffStart.format(formatter),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = JetBrainsMonoFontFamily,
+                                fontFeatureSettings = "tnum",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            ),
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = uiState.diffStart.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                    }
+                },
+                endContent = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showEndPicker = true }
+                            .testTag("diff_end_button"),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "TO (HORIZON)",
+                            style = MetricLabelTextStyle
+                        )
+                        Text(
+                            text = uiState.diffEnd.format(formatter),
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontFamily = JetBrainsMonoFontFamily,
+                                fontFeatureSettings = "tnum",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            ),
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = uiState.diffEnd.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
+                        )
+                    }
+                },
+                connectorLabel = "⇄",
+                onConnectorClick = {
+                    onSwapDates()
+                    onHudInteraction("Swapped Origin & Horizon")
+                }
+            )
+
+            // 2. Slim 52.dp Mechanical Scrubbing Ruler (Full-Pill 100%)
+            val activeReadout = if (activeRulerTarget == 0) {
+                uiState.diffStart.format(formatter)
+            } else {
+                uiState.diffEnd.format(formatter)
+            }
+            MechanicalScrubRuler(
+                targetOptions = listOf("Origin", "Horizon"),
+                selectedTargetIndex = activeRulerTarget,
+                onTargetSelected = { index ->
+                    activeRulerTarget = index
+                    onHudInteraction(if (index == 0) "Scrubbing Origin" else "Scrubbing Horizon")
+                },
+                activeValueReadout = activeReadout,
+                accentColor = KshanCyan,
+                onStepDelta = { deltaDays ->
+                    if (activeRulerTarget == 0) {
+                        val updated = uiState.diffStart.plusDays(deltaDays.toLong())
+                        onStartChanged(updated)
+                        onHudInteraction("Origin → ${updated.format(formatter)}")
+                    } else {
+                        val updated = uiState.diffEnd.plusDays(deltaDays.toLong())
+                        onEndChanged(updated)
+                        onHudInteraction("Horizon → ${updated.format(formatter)}")
+                    }
+                },
+                testTag = "diff_mechanical_ruler"
+            )
+
+            // 3. Smart Horizon Presets (Full-Pill Chips)
+            val endOfMonth = remember(today) { YearMonth.from(today).atEndOfMonth() }
+            val next30d = remember(today) { today.plusDays(30) }
+            val next90d = remember(today) { today.plusDays(90) }
+            val endOfYear = remember(today) { LocalDate.of(today.year, 12, 31) }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ModernCapsuleChip(
+                    label = "End of Month",
+                    isSelected = uiState.diffStart == today && uiState.diffEnd == endOfMonth,
+                    onClick = {
+                        onStartChanged(today)
+                        onEndChanged(endOfMonth)
+                        onHudInteraction("Horizon → End of Month")
+                    },
+                    testTag = "preset_end_of_month"
+                )
+                ModernCapsuleChip(
+                    label = "Next 30d Sprint",
+                    isSelected = uiState.diffStart == today && uiState.diffEnd == next30d,
+                    onClick = {
+                        onStartChanged(today)
+                        onEndChanged(next30d)
+                        onHudInteraction("Horizon → Next 30d Sprint")
+                    },
+                    testTag = "preset_next_30d_sprint"
+                )
+                ModernCapsuleChip(
+                    label = "90d Quarter",
+                    isSelected = uiState.diffStart == today && uiState.diffEnd == next90d,
+                    onClick = {
+                        onStartChanged(today)
+                        onEndChanged(next90d)
+                        onHudInteraction("Horizon → 90d Quarter")
+                    },
+                    testTag = "preset_90d_quarter"
+                )
+                ModernCapsuleChip(
+                    label = "End of Year",
+                    isSelected = uiState.diffStart == today && uiState.diffEnd == endOfYear,
+                    onClick = {
+                        onStartChanged(today)
+                        onEndChanged(endOfYear)
+                        onHudInteraction("Horizon → End of Year")
+                    },
+                    testTag = "preset_end_of_year"
+                )
+            }
+
+            // 4. Skip Weekends Toggle Card (24.dp #121620)
+            FrostedGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.DateRange,
+                            contentDescription = null,
+                            tint = KshanCyan,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Column {
+                            Text(
+                                text = "Skip Weekends",
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontFamily = SpaceGroteskFontFamily
+                                ),
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = "Count net working days (Mon–Fri) only",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextSecondary
+                            )
+                        }
+                    }
+                    Switch(
+                        checked = uiState.diffExcludeWeekends,
+                        onCheckedChange = {
+                            onExcludeWeekendsChanged(it)
+                            onHudInteraction(if (it) "Net Working Runway active" else "Full Calendar Runway active")
+                        },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color(0xFF070A12),
+                            checkedTrackColor = KshanCyan,
+                            uncheckedThumbColor = TextSecondary,
+                            uncheckedTrackColor = KshanSurface
+                        ),
+                        modifier = Modifier.testTag("diff_exclude_weekends")
+                    )
+                }
+            }
+
+            // 5. Hero Result OR Today's Live Kshan Card (when From == To)
+            if (res.isSameDay) {
+                val remSec = uiState.presentKshanTelemetry.secondsRemainingInDay.coerceAtLeast(0)
+                val remHours = remSec / 3600
+                val remMins = (remSec % 3600) / 60
+                val wakingShort = "${remHours}h ${remMins}m"
+                val wakingSentence = TimeEngine.formatTodayWakingRunway(remSec)
+
+                FrostedGlassCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("today_live_kshan_card")
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "TODAY'S LIVE KSHAN",
+                            style = MetricLabelTextStyle
+                        )
+
+                        Text(
+                            text = wakingShort,
+                            style = MaterialTheme.typography.displaySmall.copy(
+                                fontFamily = JetBrainsMonoFontFamily,
+                                fontFeatureSettings = "tnum",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 40.sp
+                            ),
+                            color = TextPrimary,
+                            modifier = Modifier.testTag("diff_main_number")
+                        )
+
+                        Text(
+                            text = wakingSentence,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = SpaceGroteskFontFamily,
+                                fontWeight = FontWeight.Medium
+                            ),
+                            color = TextSecondary,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                        ) {
+                            ModernCapsuleChip(
+                                label = "Month End",
+                                isSelected = false,
+                                onClick = {
+                                    onStartChanged(today)
+                                    onEndChanged(endOfMonth)
+                                    onHudInteraction("Horizon → Month End")
+                                }
+                            )
+                            ModernCapsuleChip(
+                                label = "Next 30d Sprint",
+                                isSelected = false,
+                                onClick = {
+                                    onStartChanged(today)
+                                    onEndChanged(next30d)
+                                    onHudInteraction("Horizon → Next 30d Sprint")
+                                }
+                            )
+                            ModernCapsuleChip(
+                                label = "Year End",
+                                isSelected = false,
+                                onClick = {
+                                    onStartChanged(today)
+                                    onEndChanged(endOfYear)
+                                    onHudInteraction("Horizon → Year End")
+                                }
+                            )
+                        }
+                    }
+                }
+            } else {
+                val mainDisplayLabel = if (uiState.diffExcludeWeekends) {
+                    "NET WORKING RUNWAY"
+                } else {
+                    "AVAILABLE RUNWAY"
+                }
+
+                AmbientHeroResult(
+                    mainValue = if (res.isPast && res.daysCount > 0) "-${res.daysCount}" else "${res.daysCount}",
+                    label = mainDisplayLabel,
+                    breakdownText = res.breakdownText,
+                    testTag = "diff_main_number"
+                )
+            }
+
+            // 6. Interactive Focus Hours Translator Card (24.dp #121620)
+            FrostedGlassCard(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("diff_compact_metrics_strip")
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    // Row 1: Calendar Breakdown in JetBrains Mono
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "RUNWAY CAPACITY",
+                            style = MetricLabelTextStyle
+                        )
+                        Text(
+                            text = "${focusMetrics.totalCalendarDays * 24L} Total Hours",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontFamily = JetBrainsMonoFontFamily,
+                                fontFeatureSettings = "tnum"
+                            ),
+                            color = TextMuted
+                        )
+                    }
+
+                    Text(
+                        text = focusMetrics.topRowText,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontFeatureSettings = "tnum",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        ),
+                        color = TextPrimary,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Hairline divider
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(KshanBorder)
+                    )
+
+                    // Row 2: Selectable Daily Focus Pace Chips + Deep Focus Hours Readout
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "DAILY FOCUS PACE",
+                            style = MetricLabelTextStyle
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            listOf(4, 6, 8).forEach { pace ->
+                                val isSelected = uiState.selectedFocusHoursPerDay == pace
+                                Box(
+                                    modifier = Modifier
+                                        .clip(KshanPillShape)
+                                        .background(if (isSelected) KshanCyan else KshanSurface)
+                                        .border(
+                                            width = 1.dp,
+                                            color = if (isSelected) KshanCyan else KshanBorder,
+                                            shape = KshanPillShape
+                                        )
+                                        .clickable {
+                                            onFocusPaceChanged(pace)
+                                            onHudInteraction("Focus pace → ${pace}h/day")
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                        .testTag("focus_pace_$pace"),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${pace}h/day",
+                                        style = MaterialTheme.typography.labelSmall.copy(
+                                            fontFamily = JetBrainsMonoFontFamily,
+                                            fontFeatureSettings = "tnum",
+                                            fontWeight = FontWeight.Bold
+                                        ),
+                                        color = if (isSelected) Color(0xFF070A12) else TextSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Deep Focus Hours Readout + Save as Milestone CTA
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = focusMetrics.focusLineText,
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontFamily = JetBrainsMonoFontFamily,
+                                fontFeatureSettings = "tnum",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 13.sp
+                            ),
+                            color = KshanCyan,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("runway_deep_focus_hours")
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .clip(KshanPillShape)
+                                .background(KshanSurface)
+                                .border(1.dp, KshanCyan.copy(alpha = 0.45f), KshanPillShape)
+                                .clickable {
+                                    val milestoneTitle = "Runway (${uiState.diffEnd.format(shortFormatter)})"
+                                    onSaveAsMilestone(milestoneTitle, uiState.diffEnd)
+                                    onHudInteraction("Saved $milestoneTitle to Kshans")
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .testTag("runway_save_milestone_button"),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.BookmarkAdd,
+                                    contentDescription = null,
+                                    tint = KshanCyan,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                Text(
+                                    text = "Save as Milestone →",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontFamily = SpaceGroteskFontFamily,
+                                        fontWeight = FontWeight.SemiBold
+                                    ),
+                                    color = KshanCyan
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 7. Human Rhythm 3-Card Carousel
+            if (res.daysCount > 0) {
+                HumanRhythmSection(cards = constellation.cards)
+            }
+        }
+    }
+}
+
+@Composable
+fun HumanRhythmSection(
+    cards: List<TemporalContextCardItem>,
+    modifier: Modifier = Modifier
+) {
+    val pagerState = rememberPagerState(pageCount = { cards.size })
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .testTag("human_rhythm_carousel"),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AutoAwesome,
+                    contentDescription = null,
+                    tint = KshanCyan,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "HUMAN RHYTHM TRANSLATION",
+                    style = MetricLabelTextStyle
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(cards.size) { index ->
+                    val isCurrent = pagerState.currentPage == index
+                    Box(
+                        modifier = Modifier
+                            .size(width = if (isCurrent) 14.dp else 5.dp, height = 5.dp)
+                            .clip(KshanPillShape)
+                            .background(if (isCurrent) KshanCyan else Color.White.copy(alpha = 0.20f))
+                    )
+                }
+            }
+        }
+
+        HorizontalPager(
+            state = pagerState,
+            contentPadding = PaddingValues(end = 44.dp),
+            pageSpacing = 12.dp,
+            modifier = Modifier.fillMaxWidth()
+        ) { page ->
+            val card = cards[page]
+            FrostedGlassCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = card.title,
+                        style = MetricLabelTextStyle
+                    )
+                    Text(
+                        text = card.primaryMetric,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontFeatureSettings = "tnum",
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = TextPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = card.secondaryMetric,
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontFeatureSettings = "tnum"
+                        ),
+                        color = KshanCyan,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = card.poeticCaption,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
     }
 }

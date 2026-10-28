@@ -1,20 +1,10 @@
 package com.abhi.kshan.ui.screens
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,621 +15,429 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.abhi.kshan.engine.CountdownStatus
-import com.abhi.kshan.engine.TimeEngine
-import com.abhi.kshan.ui.theme.ComicNeueFontFamily
-import com.abhi.kshan.ui.theme.CourierPrimeFontFamily
-import com.abhi.kshan.ui.theme.KalamFont
-import com.abhi.kshan.ui.theme.TabularMonoFontFamily
+import com.abhi.kshan.data.ChronoEvent
+import com.abhi.kshan.engine.CountdownTelemetry
+import com.abhi.kshan.engine.WidgetTelemetry
+import com.abhi.kshan.ui.components.FrostedGlassCard
+import com.abhi.kshan.ui.theme.JetBrainsMonoFontFamily
+import com.abhi.kshan.ui.theme.KshanBackground
+import com.abhi.kshan.ui.theme.KshanBorder
+import com.abhi.kshan.ui.theme.KshanCardShape
+import com.abhi.kshan.ui.theme.KshanCyan
+import com.abhi.kshan.ui.theme.KshanPillShape
+import com.abhi.kshan.ui.theme.KshanSurface
+import com.abhi.kshan.ui.theme.MetricLabelTextStyle
+import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
+import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
-import com.abhi.kshan.viewmodel.ChronoUiState
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 
-enum class WidgetPreviewFormat(val label: String) {
-    ORBIT_2X2("2×2 Orbit"),
-    PANORAMIC_4X2("4×2 Panoramic"),
-    PILL_4X1("4×1 Minimal Pill")
-}
-
-/**
- * Clean Upper-Half Phone Mockup.
- * Renders the top rounded bezel, speaker ear-piece cutout, status bar (10:42, Wi-Fi, battery),
- * dynamic cosmic wallpaper with accent nebula, and the active live widget card.
- */
 @Composable
-fun UpperHalfPhoneMockup(
-    format: WidgetPreviewFormat,
-    uiState: ChronoUiState,
-    opacity: Float,
-    accentColor: Color,
-    showBadge: Boolean,
-    showProgress: Boolean,
-    showTargetDate: Boolean
+fun WidgetGalleryMockupsSection(
+    heroEvent: ChronoEvent?,
+    heroTelemetry: CountdownTelemetry,
+    widgetTelemetry: WidgetTelemetry,
+    onPinWidget: (String) -> Unit = {}
 ) {
-    Box(
+    val eventTitle = heroEvent?.title ?: "Next 30d Sprint"
+    val eventCategory = (heroEvent?.category ?: "MILESTONE").uppercase()
+    val dateFormatter = remember { DateTimeFormatter.ofPattern("MMM dd, yyyy") }
+    val eventDateStr = remember(heroEvent) {
+        if (heroEvent != null) {
+            try {
+                ZonedDateTime.parse(heroEvent.targetIsoString).format(dateFormatter)
+            } catch (e: Exception) {
+                Log.w("WidgetGalleryMockups", "Date parse fallback", e)
+                "Jan 01, 2027"
+            }
+        } else {
+            "Jan 01, 2027"
+        }
+    }
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(238.dp)
-            .clip(RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 16.dp, bottomEnd = 16.dp))
-            .background(Color(0xFF070B14))
-            .border(
-                width = 2.dp,
-                brush = Brush.verticalGradient(
-                    listOf(Color(0xFF475569), Color(0xFF1E293B), Color.Transparent)
-                ),
-                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp, bottomStart = 16.dp, bottomEnd = 16.dp)
-            )
+            .testTag("widget_gallery_mockups"),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // Cosmic Wallpaper Canvas with Nebula Glow
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        accentColor.copy(alpha = 0.22f),
-                        Color(0xFF1E1B4B).copy(alpha = 0.4f),
-                        Color.Transparent
-                    ),
-                    center = Offset(size.width * 0.7f, size.height * 0.4f),
-                    radius = size.width * 0.8f
+        // 1. Nothing OS Dot-Matrix Milestone 4x2 Widget Card
+        FrostedGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                WidgetCardHeader(
+                    badge = "NOTHING OS 4×2 • MILESTONE MATRIX",
+                    onPinClick = { onPinWidget("Milestone Matrix 4×2") },
+                    testTag = "pin_widget_4x2"
                 )
-            )
+
+                // Industrial #070A12 Chassis Preview
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(KshanCardShape)
+                        .background(KshanBackground)
+                        .border(1.dp, KshanBorder, KshanCardShape)
+                        .padding(16.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(6.dp)
+                                            .clip(KshanPillShape)
+                                            .background(KshanCyan)
+                                    )
+                                    Text(
+                                        text = "KSHAN // $eventCategory",
+                                        style = MetricLabelTextStyle.copy(color = KshanCyan)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = eventTitle,
+                                    style = MaterialTheme.typography.titleMedium.copy(
+                                        fontFamily = SpaceGroteskFontFamily,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = TextPrimary,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            Text(
+                                text = eventDateStr,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontFamily = JetBrainsMonoFontFamily,
+                                    fontFeatureSettings = "tnum"
+                                ),
+                                color = TextSecondary
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            NothingMiniTile(
+                                value = "%02d".format(heroTelemetry.days),
+                                label = "DAYS",
+                                modifier = Modifier.weight(1.2f)
+                            )
+                            NothingMiniTile(
+                                value = "%02d".format(heroTelemetry.hours),
+                                label = "HRS",
+                                modifier = Modifier.weight(1f)
+                            )
+                            NothingMiniTile(
+                                value = "%02d".format(heroTelemetry.minutes),
+                                label = "MIN",
+                                modifier = Modifier.weight(1f)
+                            )
+                            NothingMiniTile(
+                                value = "%02d".format(heroTelemetry.seconds),
+                                label = "SEC",
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                }
+            }
         }
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // 2. Side-by-side 2x2 Nothing OS Widgets: Orbital Dial & 365-Dot Matrix
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Speaker cutout ear-piece
-            Box(
-                modifier = Modifier
-                    .size(width = 44.dp, height = 4.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF334155))
-            )
+            // 2A: 2x2 Orbital Dial
+            FrostedGlassCard(modifier = Modifier.weight(1f)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "ORBITAL 2×2",
+                        style = MetricLabelTextStyle
+                    )
 
-            Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(KshanCardShape)
+                            .background(KshanBackground)
+                            .border(1.dp, KshanBorder, KshanCardShape)
+                            .padding(10.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val ringFraction = ((heroTelemetry.days % 365L).toFloat() / 365f).coerceIn(0.08f, 0.92f)
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val stroke = 5.dp.toPx()
+                            drawCircle(
+                                color = Color.White.copy(alpha = 0.08f),
+                                style = Stroke(width = stroke)
+                            )
+                            drawArc(
+                                color = KshanCyan,
+                                startAngle = -90f,
+                                sweepAngle = ringFraction * 360f,
+                                useCenter = false,
+                                style = Stroke(width = stroke, cap = StrokeCap.Round)
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "${heroTelemetry.days}",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontFamily = JetBrainsMonoFontFamily,
+                                    fontFeatureSettings = "tnum",
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                color = TextPrimary
+                            )
+                            Text(
+                                text = "DAYS",
+                                style = MetricLabelTextStyle.copy(fontSize = 8.sp)
+                            )
+                        }
+                    }
 
-            // Realistic Status Bar: 10:42, Wi-Fi, battery 98%
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "10:42",
-                    fontFamily = CourierPrimeFontFamily,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White.copy(alpha = 0.9f)
+                    PinWidgetPillButton(
+                        onClick = { onPinWidget("Orbital 2×2") },
+                        testTag = "pin_widget_orbital_2x2"
+                    )
+                }
+            }
+
+            // 2B: 2x2 365-Dot Matrix Preview
+            FrostedGlassCard(modifier = Modifier.weight(1f)) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "DOT MATRIX 2×2",
+                        style = MetricLabelTextStyle
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .size(92.dp)
+                            .clip(KshanCardShape)
+                            .background(KshanBackground)
+                            .border(1.dp, KshanBorder, KshanCardShape)
+                            .padding(10.dp)
+                    ) {
+                        val progressRatio = (widgetTelemetry.yearProgressPercent / 100f).coerceIn(0f, 1f)
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val cols = 8
+                            val rows = 6
+                            val totalDots = cols * rows
+                            val activeDots = (totalDots * progressRatio).toInt()
+                            val spacingX = size.width / (cols - 1).coerceAtLeast(1)
+                            val spacingY = size.height / (rows - 1).coerceAtLeast(1)
+                            var idx = 0
+                            for (r in 0 until rows) {
+                                for (c in 0 until cols) {
+                                    val color = when {
+                                        idx < activeDots -> KshanCyan
+                                        idx == activeDots -> Color.White
+                                        else -> Color.White.copy(alpha = 0.14f)
+                                    }
+                                    drawCircle(
+                                        color = color,
+                                        radius = 2.4.dp.toPx(),
+                                        center = Offset(c * spacingX, r * spacingY)
+                                    )
+                                    idx++
+                                }
+                            }
+                        }
+                    }
+
+                    PinWidgetPillButton(
+                        onClick = { onPinWidget("Dot Matrix 2×2") },
+                        testTag = "pin_widget_dot_2x2"
+                    )
+                }
+            }
+        }
+
+        // 3. Minimal Horizon Pill 4x1 Widget
+        FrostedGlassCard(modifier = Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                WidgetCardHeader(
+                    badge = "MINIMAL HORIZON PILL 4×1",
+                    onPinClick = { onPinWidget("Horizon Pill 4×1") },
+                    testTag = "pin_widget_4x1"
                 )
 
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(KshanPillShape)
+                        .background(KshanBackground)
+                        .border(1.dp, KshanBorder, KshanPillShape)
+                        .padding(horizontal = 18.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Wifi,
-                        contentDescription = "Wi-Fi",
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(12.dp)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(KshanPillShape)
+                                .background(KshanCyan)
+                        )
+                        Text(
+                            text = eventTitle,
+                            style = MaterialTheme.typography.titleSmall.copy(
+                                fontFamily = SpaceGroteskFontFamily,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
                     Text(
-                        text = "98%",
-                        fontFamily = CourierPrimeFontFamily,
-                        fontSize = 10.sp,
-                        color = Color.White.copy(alpha = 0.9f)
+                        text = "${heroTelemetry.days}d ${heroTelemetry.hours}h",
+                        style = MaterialTheme.typography.titleSmall.copy(
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontFeatureSettings = "tnum",
+                            fontWeight = FontWeight.Bold
+                        ),
+                        color = KshanCyan
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Active Widget Preview Card inside Mockup
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                when (format) {
-                    WidgetPreviewFormat.ORBIT_2X2 -> {
-                        WidgetCardOrbit2x2(
-                            uiState = uiState,
-                            opacity = opacity,
-                            accentColor = accentColor,
-                            showBadge = showBadge,
-                            showProgress = showProgress
-                        )
-                    }
-                    WidgetPreviewFormat.PANORAMIC_4X2 -> {
-                        WidgetCardPanoramic4x2(
-                            uiState = uiState,
-                            opacity = opacity,
-                            accentColor = accentColor,
-                            showBadge = showBadge,
-                            showProgress = showProgress,
-                            showTargetDate = showTargetDate
-                        )
-                    }
-                    WidgetPreviewFormat.PILL_4X1 -> {
-                        WidgetCardMinimalPill4x1(
-                            uiState = uiState,
-                            opacity = opacity,
-                            accentColor = accentColor,
-                            showBadge = showBadge
-                        )
-                    }
                 }
             }
         }
     }
 }
 
-/**
- * 4×2 Panoramic Widget Preview:
- * Shows Days + Live Ticking HH:MM:SS remainder countdown timer with smooth digit flip animations,
- * or "MILESTONE REACHED" when the target instant has arrived.
- */
 @Composable
-fun WidgetCardPanoramic4x2(
-    uiState: ChronoUiState,
-    opacity: Float,
-    accentColor: Color,
-    showBadge: Boolean,
-    showProgress: Boolean,
-    showTargetDate: Boolean
+private fun WidgetCardHeader(
+    badge: String,
+    onPinClick: () -> Unit,
+    testTag: String
 ) {
-    val isReached = uiState.countdownTelemetry.status == CountdownStatus.TARGET_REACHED ||
-            uiState.countdownTelemetry.status == CountdownStatus.EVENT_PASSED
-
-    val infiniteTransition = rememberInfiniteTransition(label = "widget_4x2_pulse")
-    val colonAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(550, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "colon_pulse"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF0B101E).copy(alpha = opacity))
-            .border(
-                width = 1.2.dp,
-                brush = Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = 0.22f), accentColor.copy(alpha = 0.38f), Color.Transparent)
-                ),
-                shape = RoundedCornerShape(20.dp)
-            )
-            .padding(14.dp)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "क्षण",
-                        fontFamily = KalamFont,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor
-                    )
-                    Text(
-                        text = " • Kshan",
-                        fontFamily = ComicNeueFontFamily,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = accentColor
-                    )
-                }
-
-                if (showBadge) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(accentColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = uiState.activeEventCategory.uppercase(),
-                            fontFamily = ComicNeueFontFamily,
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = accentColor
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (showProgress) {
-                    Box(
-                        modifier = Modifier.size(48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Canvas(modifier = Modifier.fillMaxSize()) {
-                            drawCircle(color = Color.White.copy(alpha = 0.15f), style = Stroke(4.dp.toPx()))
-                            val sweep = if (isReached) 360f else ((365 - (uiState.countdownTelemetry.days % 365)) / 365f) * 360f
-                            drawArc(
-                                color = accentColor,
-                                startAngle = -90f,
-                                sweepAngle = sweep.coerceIn(30f, 360f),
-                                useCenter = false,
-                                style = Stroke(4.dp.toPx(), cap = StrokeCap.Round)
-                            )
-                        }
-                        Text(
-                            text = if (isReached) "✓" else "${uiState.countdownTelemetry.days}d",
-                            fontFamily = TabularMonoFontFamily,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
-                    if (isReached) {
-                        Text(
-                            text = "MILESTONE REACHED",
-                            fontFamily = ComicNeueFontFamily,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = accentColor
-                        )
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "${uiState.countdownTelemetry.days} DAYS • ",
-                                fontFamily = TabularMonoFontFamily,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                            LiveAnimatedTimerPill(
-                                hours = uiState.countdownTelemetry.hours,
-                                minutes = uiState.countdownTelemetry.minutes,
-                                seconds = uiState.countdownTelemetry.seconds,
-                                accentColor = accentColor,
-                                colonAlpha = colonAlpha
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(3.dp))
-
-                    Text(
-                        text = uiState.activeEventTitle,
-                        fontFamily = ComicNeueFontFamily,
-                        fontSize = 12.sp,
-                        color = TextSecondary,
-                        maxLines = 1
-                    )
-                }
-            }
-
-            if (showTargetDate) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "Target: ${uiState.countdownTarget.format(TimeEngine.SHORT_DATE_FORMATTER)} • Daily boundary sync",
-                    fontFamily = CourierPrimeFontFamily,
-                    fontSize = 10.sp,
-                    color = TextMuted
-                )
-            }
-        }
+        Text(
+            text = badge,
+            style = MetricLabelTextStyle
+        )
+        PinWidgetPillButton(
+            onClick = onPinClick,
+            testTag = testTag
+        )
     }
 }
 
-/**
- * 2×2 Orbit Widget Preview:
- * Shows Days Only inside the orbital progress ring for ultra-clean compact symmetry.
- */
 @Composable
-fun WidgetCardOrbit2x2(
-    uiState: ChronoUiState,
-    opacity: Float,
-    accentColor: Color,
-    showBadge: Boolean,
-    showProgress: Boolean
+private fun PinWidgetPillButton(
+    onClick: () -> Unit,
+    testTag: String
 ) {
-    val isReached = uiState.countdownTelemetry.status == CountdownStatus.TARGET_REACHED ||
-            uiState.countdownTelemetry.status == CountdownStatus.EVENT_PASSED
-
     Box(
         modifier = Modifier
-            .size(152.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF0B101E).copy(alpha = opacity))
-            .border(
-                width = 1.2.dp,
-                brush = Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = 0.22f), accentColor.copy(alpha = 0.35f), Color.Transparent)
-                ),
-                shape = RoundedCornerShape(22.dp)
-            )
-            .padding(10.dp),
+            .clip(KshanPillShape)
+            .background(KshanSurface)
+            .border(1.dp, KshanCyan.copy(alpha = 0.45f), KshanPillShape)
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .testTag(testTag),
         contentAlignment = Alignment.Center
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (showBadge) {
-                Text(
-                    text = uiState.activeEventCategory.uppercase(),
-                    fontFamily = ComicNeueFontFamily,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            if (showProgress) {
-                Box(
-                    modifier = Modifier.size(58.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        drawCircle(color = Color.White.copy(alpha = 0.15f), style = Stroke(5.dp.toPx()))
-                        val sweep = if (isReached) 360f else ((365 - (uiState.countdownTelemetry.days % 365)) / 365f) * 360f
-                        drawArc(
-                            color = accentColor,
-                            startAngle = -90f,
-                            sweepAngle = sweep.coerceIn(30f, 360f),
-                            useCenter = false,
-                            style = Stroke(5.dp.toPx(), cap = StrokeCap.Round)
-                        )
-                    }
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = if (isReached) "0" else "${uiState.countdownTelemetry.days}",
-                            fontFamily = TabularMonoFontFamily,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = "DAYS",
-                            fontFamily = ComicNeueFontFamily,
-                            fontSize = 7.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = accentColor
-                        )
-                    }
-                }
-            } else {
-                Text(
-                    text = if (isReached) "REACHED" else "${uiState.countdownTelemetry.days}d",
-                    fontFamily = TabularMonoFontFamily,
-                    fontSize = if (isReached) 15.sp else 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-            }
-
-            Spacer(modifier = Modifier.height(5.dp))
-
-            Text(
-                text = uiState.activeEventTitle,
-                fontFamily = ComicNeueFontFamily,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextSecondary,
-                maxLines = 1,
-                textAlign = TextAlign.Center
-            )
-        }
-    }
-}
-
-/**
- * 4×1 Minimal Pill Widget Preview:
- * Shows Days + Live Ticking HH:MM:SS countdown timer inside a sleek horizontal capsule.
- */
-@Composable
-fun WidgetCardMinimalPill4x1(
-    uiState: ChronoUiState,
-    opacity: Float,
-    accentColor: Color,
-    showBadge: Boolean
-) {
-    val isReached = uiState.countdownTelemetry.status == CountdownStatus.TARGET_REACHED ||
-            uiState.countdownTelemetry.status == CountdownStatus.EVENT_PASSED
-
-    val infiniteTransition = rememberInfiniteTransition(label = "widget_4x1_pulse")
-    val colonAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(550, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pill_colon_pulse"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(62.dp)
-            .clip(RoundedCornerShape(31.dp))
-            .background(Color(0xFF0B101E).copy(alpha = opacity))
-            .border(
-                width = 1.2.dp,
-                brush = Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = 0.25f), accentColor.copy(alpha = 0.4f), Color.Transparent)
-                ),
-                shape = RoundedCornerShape(31.dp)
-            )
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = "क्षण",
-                    fontFamily = KalamFont,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = uiState.activeEventTitle,
-                            fontFamily = ComicNeueFontFamily,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            maxLines = 1
-                        )
-                        if (showBadge) {
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "• ${uiState.activeEventCategory.uppercase()}",
-                                fontFamily = ComicNeueFontFamily,
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = accentColor
-                            )
-                        }
-                    }
-                    Text(
-                        text = uiState.countdownTarget.format(TimeEngine.SHORT_DATE_FORMATTER),
-                        fontFamily = CourierPrimeFontFamily,
-                        fontSize = 10.sp,
-                        color = TextSecondary
-                    )
-                }
-            }
-
-            if (isReached) {
-                Text(
-                    text = "REACHED",
-                    fontFamily = ComicNeueFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = accentColor
-                )
-            } else {
-                Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = "${uiState.countdownTelemetry.days}d",
-                        fontFamily = TabularMonoFontFamily,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    LiveAnimatedTimerPill(
-                        hours = uiState.countdownTelemetry.hours,
-                        minutes = uiState.countdownTelemetry.minutes,
-                        seconds = uiState.countdownTelemetry.seconds,
-                        accentColor = accentColor,
-                        colonAlpha = colonAlpha
-                    )
-                }
-            }
+            Icon(
+                imageVector = Icons.Filled.Add,
+                contentDescription = null,
+                tint = KshanCyan,
+                modifier = Modifier.size(13.dp)
+            )
+            Text(
+                text = "Pin to Home Screen",
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontFamily = SpaceGroteskFontFamily,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 11.sp
+                ),
+                color = KshanCyan
+            )
         }
     }
 }
 
 @Composable
-private fun LiveAnimatedTimerPill(
-    hours: Long,
-    minutes: Long,
-    seconds: Long,
-    accentColor: Color,
-    colonAlpha: Float
+private fun NothingMiniTile(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier
 ) {
-    val hStr = String.format("%02d", hours)
-    val mStr = String.format("%02d", minutes)
-    val sStr = String.format("%02d", seconds)
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(
+        modifier = modifier
+            .clip(KshanPillShape)
+            .background(KshanSurface)
+            .border(1.dp, KshanBorder, KshanPillShape)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Text(
-            text = hStr,
-            fontFamily = CourierPrimeFontFamily,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = accentColor
+            text = value,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontFamily = JetBrainsMonoFontFamily,
+                fontFeatureSettings = "tnum",
+                fontWeight = FontWeight.Bold
+            ),
+            color = TextPrimary
         )
         Text(
-            text = ":",
-            fontFamily = CourierPrimeFontFamily,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = accentColor.copy(alpha = colonAlpha)
+            text = label,
+            style = MetricLabelTextStyle.copy(fontSize = 9.sp),
+            color = TextMuted
         )
-        Text(
-            text = mStr,
-            fontFamily = CourierPrimeFontFamily,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = accentColor
-        )
-        Text(
-            text = ":",
-            fontFamily = CourierPrimeFontFamily,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = accentColor.copy(alpha = colonAlpha)
-        )
-        AnimatedContent(
-            targetState = sStr,
-            transitionSpec = {
-                (slideInVertically { height -> height / 2 } + fadeIn(tween(180)))
-                    .togetherWith(slideOutVertically { height -> -height / 2 } + fadeOut(tween(180)))
-            },
-            label = "widget_sec_flip"
-        ) { targetSec ->
-            Text(
-                text = targetSec,
-                fontFamily = CourierPrimeFontFamily,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = accentColor
-            )
-        }
     }
 }

@@ -52,6 +52,26 @@ data class CompactMetricsStrip(
     val formattedLine: String
 )
 
+data class RunwayFocusMetrics(
+    val totalCalendarDays: Long,
+    val workingDays: Long,
+    val weekendDaysOff: Long,
+    val weeks: Long,
+    val remainingDays: Long,
+    val weeksAndDaysText: String,
+    val focusHours: Long,
+    val hoursPerDay: Int,
+    val topRowText: String,
+    val focusLineText: String
+)
+
+data class PlannerBufferMetrics(
+    val totalCalendarDays: Long,
+    val workingDays: Long,
+    val weekendBufferDays: Long,
+    val formattedSummary: String
+)
+
 data class TemporalContextCardItem(
     val title: String,
     val primaryMetric: String,
@@ -99,6 +119,7 @@ object TimeEngine {
     val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.US)
 
     private val YEARLY_DEFAULT_CATEGORIES = setOf("birthday", "holiday", "anniversary")
+    private val STREAK_MILESTONES = longArrayOf(7L, 14L, 21L, 30L, 50L, 75L, 100L, 150L, 200L, 300L, 365L, 500L, 730L, 1000L)
 
     /**
      * Returns true if a category defaults to `repeatsYearly = true` when creating a new event.
@@ -141,14 +162,6 @@ object TimeEngine {
     /**
      * Resolves the effective target ZonedDateTime and whether an annual recurring event
      * was rolled forward to its current or next upcoming occurrence.
-     *
-     * Rules:
-     * 1. Only rolls over when `repeatsYearly` is true AND `raw.toLocalDate().isBefore(today)`.
-     *    Future-year recurring events (e.g., Dec 2027) are NEVER pulled backward to the current year.
-     * 2. Uses `MonthDay.from(raw).atYear(...)` so Feb 29 leap-day events clamp cleanly to Feb 28 on
-     *    non-leap years (e.g., 2027) and return to Feb 29 on leap years (e.g., 2028).
-     * 3. Events whose month/day matches `today` stay on `today` all day so the UI can display
-     *    the dedicated `"Today ✦"` state for the entire calendar day.
      */
     fun resolveEffectiveTarget(
         now: ZonedDateTime,
@@ -211,8 +224,6 @@ object TimeEngine {
 
     /**
      * Projects any saved ChronoEvent onto `currentYear`'s 1..365/366 day index.
-     * Recurring yearly events (`repeatsYearly == true`) are projected onto `currentYear`
-     * via `MonthDay.from(eventZdt).atYear(currentYear)` with full leap-year safety.
      */
     fun projectEventDayOfYear(
         eventZdt: ZonedDateTime,
@@ -240,10 +251,10 @@ object TimeEngine {
     )
 
     /**
-     * Computes the sleek single-line 3-Metric Strip for the Span (Difference) and Shift (Date Math) screens:
-     * - `weeks = totalDays / 7` and `remDays = totalDays % 7` (e.g., for 20 days: `2w 6d`)
-     * - `workdays = calculateBusinessDaysBetween(minDate, maxDate)` using actual Monday-Friday calendar math
-     * - `hours = totalDays * 24` (e.g., for 20 days: `480 Hours`)
+     * Computes the sleek single-line 3-Metric Strip for backward compatibility & tests:
+     * - `weeks = totalDays / 7` and `remDays = totalDays % 7`
+     * - `workdays = calculateBusinessDaysBetween(minDate, maxDate)`
+     * - `hours = totalDays * 24`
      */
     fun calculateCompactMetricsStrip(
         start: LocalDate,
@@ -273,6 +284,118 @@ object TimeEngine {
             hoursText = hoursText,
             formattedLine = formattedLine
         )
+    }
+
+    /**
+     * Actionable Runway & Focus Budget Calculator for Tab 1 (Runway):
+     * Computes exact working days, weekend days off, weeks + days, and deep focus hours
+     * at the user's chosen daily focus pace (`4h/day`, `6h/day`, `8h/day`).
+     */
+    fun calculateRunwayFocusMetrics(
+        start: LocalDate,
+        end: LocalDate,
+        hoursPerDay: Int = 6
+    ): RunwayFocusMetrics {
+        val minDate = if (start.isBefore(end)) start else end
+        val maxDate = if (start.isBefore(end)) end else start
+        val totalCalendarDays = ChronoUnit.DAYS.between(minDate, maxDate).coerceAtLeast(0L)
+        val workingDays = calculateBusinessDaysBetween(minDate, maxDate)
+        val weekendDaysOff = (totalCalendarDays - workingDays).coerceAtLeast(0L)
+        val weeks = totalCalendarDays / 7L
+        val remainingDays = totalCalendarDays % 7L
+        val clampedPace = hoursPerDay.coerceIn(1, 16)
+        val focusHours = workingDays * clampedPace.toLong()
+
+        val weeksAndDaysText = "${weeks}w ${remainingDays}d"
+        val workingLabel = if (workingDays == 1L) "1 Working Day" else "$workingDays Working Days"
+        val weekendLabel = if (weekendDaysOff == 1L) "1 Weekend Day Off" else "$weekendDaysOff Weekends Off"
+        val topRowText = "$weeksAndDaysText  •  $workingLabel  •  $weekendLabel"
+        val focusLineText = "= $focusHours Deep Focus Hours (at ${clampedPace}h/day)"
+
+        return RunwayFocusMetrics(
+            totalCalendarDays = totalCalendarDays,
+            workingDays = workingDays,
+            weekendDaysOff = weekendDaysOff,
+            weeks = weeks,
+            remainingDays = remainingDays,
+            weeksAndDaysText = weeksAndDaysText,
+            focusHours = focusHours,
+            hoursPerDay = clampedPace,
+            topRowText = topRowText,
+            focusLineText = focusLineText
+        )
+    }
+
+    /**
+     * Computes the exact working days + weekend buffer days breakdown for Tab 2 (Planner):
+     * e.g., "12 Working Days + 4 Weekend Buffer Days (16 Calendar Days total)"
+     */
+    fun calculatePlannerBufferMetrics(
+        base: LocalDate,
+        arrival: LocalDate
+    ): PlannerBufferMetrics {
+        val minDate = if (base.isBefore(arrival)) base else arrival
+        val maxDate = if (base.isBefore(arrival)) arrival else base
+        val totalCalendarDays = ChronoUnit.DAYS.between(minDate, maxDate).coerceAtLeast(0L)
+        val workingDays = calculateBusinessDaysBetween(minDate, maxDate)
+        val weekendBufferDays = (totalCalendarDays - workingDays).coerceAtLeast(0L)
+
+        val workStr = if (workingDays == 1L) "1 Working Day" else "$workingDays Working Days"
+        val bufStr = if (weekendBufferDays == 1L) "1 Weekend Buffer Day" else "$weekendBufferDays Weekend Buffer Days"
+        val calStr = if (totalCalendarDays == 1L) "1 Calendar Day total" else "$totalCalendarDays Calendar Days total"
+
+        return PlannerBufferMetrics(
+            totalCalendarDays = totalCalendarDays,
+            workingDays = workingDays,
+            weekendBufferDays = weekendBufferDays,
+            formattedSummary = "$workStr + $bufStr ($calStr)"
+        )
+    }
+
+    /**
+     * Computes the Real-Life Context Line inside the Hero Card on Tab 3 (Kshans):
+     * - In `Count Down (−)` mode: `"32 Working Days left  •  192h at 6h/day"`
+     * - In `Days Since (+)` mode: `"Streak Milestone: Next 100d mark in 14 days"`
+     */
+    fun calculateHeroContextLine(
+        now: ZonedDateTime,
+        effectiveTarget: ZonedDateTime,
+        rawTarget: ZonedDateTime,
+        isCountUpMode: Boolean,
+        hoursPerDay: Int = 6
+    ): String {
+        val today = now.toLocalDate()
+        val pace = hoursPerDay.coerceIn(1, 16)
+        return if (isCountUpMode) {
+            val elapsedDays = ChronoUnit.DAYS.between(rawTarget.toLocalDate(), today).coerceAtLeast(0L)
+            val nextMilestone = STREAK_MILESTONES.firstOrNull { it > elapsedDays }
+                ?: (((elapsedDays / 100L) + 1L) * 100L)
+            val daysToMilestone = (nextMilestone - elapsedDays).coerceAtLeast(1L)
+            "Streak Milestone: Next ${nextMilestone}d mark in $daysToMilestone ${if (daysToMilestone == 1L) "day" else "days"}"
+        } else {
+            val targetDate = effectiveTarget.toLocalDate()
+            if (!targetDate.isAfter(today)) {
+                val remSec = Duration.between(now.toInstant(), effectiveTarget.toInstant()).seconds.coerceAtLeast(0L)
+                val remHrs = remSec / 3600L
+                val remMins = (remSec % 3600L) / 60L
+                "Today's Final Runway  •  ${remHrs}h ${remMins}m remaining"
+            } else {
+                val workingDays = calculateBusinessDaysBetween(today, targetDate)
+                val focusHours = workingDays * pace.toLong()
+                val workLabel = if (workingDays == 1L) "1 Working Day left" else "$workingDays Working Days left"
+                "$workLabel  •  ${focusHours}h at ${pace}h/day"
+            }
+        }
+    }
+
+    /**
+     * Computes Today's Live Waking Runway for when `From == To` on the Runway tab.
+     */
+    fun formatTodayWakingRunway(secondsRemainingInDay: Int): String {
+        val remSecs = secondsRemainingInDay.coerceAtLeast(0)
+        val hours = remSecs / 3600
+        val mins = (remSecs % 3600) / 60
+        return "Today has ${hours}h ${mins}m of waking runway left"
     }
 
     /**
@@ -469,16 +592,11 @@ object TimeEngine {
 
     /**
      * Calculates live countdown telemetry.
-     *
-     * Compares `LocalDate` first: if `target.toLocalDate() == now.toLocalDate()`,
-     * returns `CountdownStatus.TODAY_CELEBRATION` ("Today ✦") for the entire calendar day
-     * so today's milestone is celebrated all day rather than expiring or rolling over at 10:01 AM.
      */
     fun calculateCountdown(now: ZonedDateTime, target: ZonedDateTime): CountdownTelemetry {
         val nowInstant = now.toInstant()
         val targetInstant = target.toInstant()
 
-        // Dedicated "Today ✦" celebration state for the entire calendar day of the milestone
         if (target.toLocalDate() == now.toLocalDate()) {
             val remSeconds = Duration.between(nowInstant, targetInstant).seconds.coerceAtLeast(0L)
             val hours = (remSeconds % 86400L) / 3600L
@@ -589,12 +707,13 @@ object TimeEngine {
         val epochSeconds = epochMillis / 1000
         val isoFormatted = DateTimeFormatter.ISO_OFFSET_DATE_TIME.format(now)
 
-        // 6. Quick Date Jumps
+        // 6. Quick Date Jumps (2x2 Bento Grid)
+        val endOfYear = LocalDate.of(year, 12, 31)
         val jumps = listOf(
-            QuickJumpItem("+1 Week", localDate.plusWeeks(1), 7),
-            QuickJumpItem("+30 Days", localDate.plusDays(30), 30),
-            QuickJumpItem("+100 Days", localDate.plusDays(100), 100),
-            QuickJumpItem("End of Q$quarter", endOfQuarter, ChronoUnit.DAYS.between(localDate, endOfQuarter).toInt())
+            QuickJumpItem("+30d Sprint", localDate.plusDays(30), 30),
+            QuickJumpItem("+90d Quarter", localDate.plusDays(90), 90),
+            QuickJumpItem("End of Q$quarter", endOfQuarter, ChronoUnit.DAYS.between(localDate, endOfQuarter).toInt().coerceAtLeast(1)),
+            QuickJumpItem("End of Year", endOfYear, ChronoUnit.DAYS.between(localDate, endOfYear).toInt().coerceAtLeast(1))
         )
 
         return WidgetTelemetry(

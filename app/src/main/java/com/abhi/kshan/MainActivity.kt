@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,11 +43,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -62,20 +65,21 @@ import com.abhi.kshan.ui.screens.CountdownScreen
 import com.abhi.kshan.ui.screens.DateMathScreen
 import com.abhi.kshan.ui.screens.DifferenceScreen
 import com.abhi.kshan.ui.screens.WidgetsDashboardScreen
-import com.abhi.kshan.ui.theme.IceCyan
 import com.abhi.kshan.ui.theme.KalamFont
+import com.abhi.kshan.ui.theme.KshanBackground
+import com.abhi.kshan.ui.theme.KshanBorder
+import com.abhi.kshan.ui.theme.KshanPillShape
+import com.abhi.kshan.ui.theme.KshanSurface
 import com.abhi.kshan.ui.theme.MyApplicationTheme
-import com.abhi.kshan.ui.theme.ObsidianGlass
-import com.abhi.kshan.ui.theme.SpaceBlack
 import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
-import com.abhi.kshan.ui.theme.TitaniumHairline
-import com.abhi.kshan.ui.theme.WarmChampagne
+import com.abhi.kshan.ui.theme.VisionGold
 import com.abhi.kshan.viewmodel.ChronoTab
 import com.abhi.kshan.viewmodel.ChronoViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,8 +117,11 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(SpaceBlack)
+            .background(KshanBackground)
     ) {
+        // 0. Subtle 2% Procedural Noise/Grain Overlay + Soft Radial Edge Vignette
+        ProceduralGrainAndVignetteOverlay(modifier = Modifier.fillMaxSize())
+
         // 1. Dynamic Lifecycle-Aware Particle Canvas Background
         LifecycleParticleCanvas(
             modifier = Modifier.fillMaxSize(),
@@ -134,8 +141,8 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                             Brush.verticalGradient(
                                 colors = listOf(
                                     Color.Transparent,
-                                    Color(0xFF050811).copy(alpha = 0.85f),
-                                    Color(0xFF050811)
+                                    KshanBackground.copy(alpha = 0.85f),
+                                    KshanBackground
                                 )
                             )
                         )
@@ -153,7 +160,7 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                     .padding(top = innerPadding.calculateTopPadding())
                     .statusBarsPadding()
             ) {
-                // Top Header Branding: Interactive Kalam Devanagari Squircle ("क्षण") & Titanium/Champagne "✦ Vision" Pill
+                // Top Header Branding: Interactive Kalam Devanagari Squircle ("क्षण") & Filled #121620 "✦ Vision" Pill
                 KshanHeader(
                     isPresentKshanOpen = showPresentKshanOverlay,
                     onSquircleClick = {
@@ -192,7 +199,12 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                                 uiState = uiState,
                                 onStartChanged = { viewModel.setDiffStart(it) },
                                 onEndChanged = { viewModel.setDiffEnd(it) },
+                                onSwapDates = { viewModel.swapDiffDates() },
                                 onExcludeWeekendsChanged = { viewModel.toggleDiffWeekends(it) },
+                                onFocusPaceChanged = { viewModel.setFocusHoursPerDay(it) },
+                                onSaveAsMilestone = { title, date ->
+                                    viewModel.saveHorizonOrSprintToKshans(title, date, "Goal")
+                                },
                                 onHudInteraction = { viewModel.setHudLog(it) }
                             )
 
@@ -202,6 +214,9 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                                 onDaysChanged = { viewModel.setMathDays(it) },
                                 onOperationChanged = { viewModel.setMathOperation(it) },
                                 onExcludeWeekendsChanged = { viewModel.toggleMathWeekends(it) },
+                                onPinToKshans = { title, date ->
+                                    viewModel.saveHorizonOrSprintToKshans(title, date, "Goal")
+                                },
                                 onHudInteraction = { viewModel.setHudLog(it) }
                             )
 
@@ -224,6 +239,15 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
                                 uiState = uiState,
                                 savedEvents = savedEvents,
                                 onPowerSaverToggled = { viewModel.togglePowerSaver(it) },
+                                onOpenJumpInPlanner = { days, label ->
+                                    viewModel.openJumpInPlanner(days, label)
+                                },
+                                onOpenJumpInRunway = { targetDate, label ->
+                                    viewModel.openJumpInRunway(targetDate, label)
+                                },
+                                onSaveJumpToKshans = { title, targetDate ->
+                                    viewModel.saveHorizonOrSprintToKshans(title, targetDate, "Goal")
+                                },
                                 onHudInteraction = { viewModel.setHudLog(it) }
                             )
                         }
@@ -232,7 +256,7 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
             }
         }
 
-        // 3. Floating "Present Moment (क्षण)" Overlay Card (zIndex = 10f so it never squishes layout)
+        // 3. Floating "Present Moment (क्षण)" Overlay Card
         PresentKshanDropdownCard(
             visible = showPresentKshanOverlay,
             telemetry = uiState.presentKshanTelemetry,
@@ -247,6 +271,50 @@ fun KshanApp(viewModel: ChronoViewModel = viewModel()) {
             visible = showDeveloperVisionModal,
             epochMillis = uiState.widgetTelemetry.epochMillis,
             onDismiss = { showDeveloperVisionModal = false }
+        )
+    }
+}
+
+/**
+ * Subtle 2% procedural noise/grain overlay + soft radial edge vignette on the root #070A12 Box
+ * so the obsidian background feels cinematic rather than flat.
+ */
+@Composable
+private fun ProceduralGrainAndVignetteOverlay(modifier: Modifier = Modifier) {
+    val grainPoints = remember {
+        val rng = Random(4201)
+        FloatArray(360) { rng.nextFloat() }
+    }
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        // 2% procedural grain specks
+        val count = grainPoints.size / 2
+        for (i in 0 until count) {
+            val gx = grainPoints[i * 2] * w
+            val gy = grainPoints[i * 2 + 1] * h
+            val alpha = if (i % 2 == 0) 0.022f else 0.015f
+            drawCircle(
+                color = Color.White.copy(alpha = alpha),
+                radius = 1.1.dp.toPx(),
+                center = Offset(gx, gy)
+            )
+        }
+
+        // Soft radial edge vignette
+        drawRect(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    Color.Transparent,
+                    Color.Black.copy(alpha = 0.18f),
+                    Color.Black.copy(alpha = 0.45f)
+                ),
+                center = Offset(w / 2f, h * 0.45f),
+                radius = maxOf(w, h) * 0.72f
+            ),
+            size = size
         )
     }
 }
@@ -272,6 +340,7 @@ fun KshanHeader(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
+                    .weight(1f, fill = false)
                     .clip(RoundedCornerShape(16.dp))
                     .clickable {
                         try {
@@ -281,17 +350,18 @@ fun KshanHeader(
                         }
                         onSquircleClick()
                     }
+                    .padding(end = 8.dp)
                     .testTag("kshan_header_squircle_button")
             ) {
-                // (1) Interactive Frosted-Glass Squircle ("क्षण")
+                // (1) Interactive #121620 Squircle ("क्षण")
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(RoundedCornerShape(13.dp))
-                        .background(ObsidianGlass)
+                        .background(KshanSurface)
                         .border(
-                            width = 0.8.dp,
-                            color = if (isPresentKshanOpen) WarmChampagne.copy(alpha = 0.65f) else TitaniumHairline,
+                            width = 1.dp,
+                            color = if (isPresentKshanOpen) VisionGold.copy(alpha = 0.65f) else KshanBorder,
                             shape = RoundedCornerShape(13.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -301,7 +371,7 @@ fun KshanHeader(
                         fontFamily = KalamFont,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isPresentKshanOpen) WarmChampagne else TextPrimary,
+                        color = if (isPresentKshanOpen) VisionGold else TextPrimary,
                         modifier = Modifier.offset(y = (-1).dp)
                     )
                 }
@@ -310,9 +380,9 @@ fun KshanHeader(
 
                 Box(
                     modifier = Modifier
-                        .width(0.8.dp)
+                        .width(1.dp)
                         .height(24.dp)
-                        .background(TitaniumHairline)
+                        .background(KshanBorder)
                 )
 
                 Spacer(modifier = Modifier.width(12.dp))
@@ -324,26 +394,29 @@ fun KshanHeader(
                         fontSize = 19.sp,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = (-0.3).sp,
-                        color = TextPrimary
+                        color = TextPrimary,
+                        maxLines = 1
                     )
                     Text(
-                        text = "Precision Date Companion",
+                        text = "Intentional Time & Runway",
                         fontFamily = SpaceGroteskFontFamily,
                         fontSize = 11.5.sp,
-                        color = TextMuted
+                        color = TextMuted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Visible
                     )
                 }
             }
 
-            // (2) Subtle Titanium & Champagne "✦ Vision" Developer Showcase Pill
+            // (2) Exclusive Vision Gold (#E6C87A) inside Filled Dark #121620 Full Pill with subtle inner highlight
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(ObsidianGlass)
+                    .clip(KshanPillShape)
+                    .background(KshanSurface)
                     .border(
-                        width = 0.8.dp,
-                        color = WarmChampagne.copy(alpha = 0.38f),
-                        shape = RoundedCornerShape(50)
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = 0.12f),
+                        shape = KshanPillShape
                     )
                     .clickable {
                         try {
@@ -353,7 +426,7 @@ fun KshanHeader(
                         }
                         onVisionClick()
                     }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+                    .padding(horizontal = 14.dp, vertical = 7.dp)
                     .testTag("kshan_vision_pill_button")
             ) {
                 Text(
@@ -361,7 +434,7 @@ fun KshanHeader(
                     fontFamily = SpaceGroteskFontFamily,
                     fontSize = 11.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = WarmChampagne
+                    color = VisionGold
                 )
             }
         }

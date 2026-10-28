@@ -2,6 +2,7 @@ package com.abhi.kshan.ui.components
 
 import android.util.Log
 import android.view.HapticFeedbackConstants
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -12,6 +13,11 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -53,70 +59,73 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.abhi.kshan.ui.theme.CourierPrimeFontFamily
+import com.abhi.kshan.ui.theme.CardTitleTextStyle
 import com.abhi.kshan.ui.theme.IceCyan
-import com.abhi.kshan.ui.theme.NeonCyan
-import com.abhi.kshan.ui.theme.ObsidianGlass
-import com.abhi.kshan.ui.theme.SpaceBlack
-import com.abhi.kshan.ui.theme.SpaceCard
-import com.abhi.kshan.ui.theme.SpaceCardBorder
-import com.abhi.kshan.ui.theme.SpaceDark
+import com.abhi.kshan.ui.theme.JetBrainsMonoFontFamily
+import com.abhi.kshan.ui.theme.KshanBackground
+import com.abhi.kshan.ui.theme.KshanBorder
+import com.abhi.kshan.ui.theme.KshanCyan
+import com.abhi.kshan.ui.theme.KshanPillShape
+import com.abhi.kshan.ui.theme.KshanSurface
+import com.abhi.kshan.ui.theme.MetricLabelTextStyle
 import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
-import com.abhi.kshan.ui.theme.TabularMonoFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
 import com.abhi.kshan.ui.theme.TitaniumHairline
+import com.abhi.kshan.ui.theme.VisionGold
 import com.abhi.kshan.ui.theme.WarmChampagne
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
 /**
- * Minimalist Luxury "Titanium & Ice" Obsidian Glass Card.
- *
- * Uses a unified, quiet Obsidian Glass fill (#0A0E17 at 85% alpha) with a clean,
- * uniform 0.8.dp Titanium Hairline Border (White.copy(alpha = 0.10f)).
- * Only actively selected cards/pills (glowAlpha >= 0.55f) receive a subtle Ice Cyan
- * (#38BDF8) or Warm Champagne (#E5C158) border.
+ * Strict 4-Color, 2-Radius Card Component:
+ * - Surface: #121620 (KshanSurface) with optional `surfaceAlpha` (1.0f standard, 0.60f for unpinned rows)
+ * - Border: 1.dp solid Color.White.copy(alpha = 0.08f) on all standard cards
+ *   (or explicit `customBorderColor` when `useCustomBorder = true`, e.g., pinned Kshan card)
+ * - Corner Radius: Strictly 24.dp (`RoundedCornerShape(24.dp)`)
  */
 @Composable
 fun FrostedGlassCard(
     modifier: Modifier = Modifier,
-    borderColor: Color = TitaniumHairline,
+    borderColor: Color = KshanBorder,
     glowAlpha: Float = 0.25f,
     cornerRadius: Dp = 24.dp,
+    surfaceAlpha: Float = 1.0f,
+    useCustomBorder: Boolean = false,
     content: @Composable BoxScope.() -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.988f else 1.0f,
+        targetValue = if (isPressed) 0.99f else 1.0f,
         animationSpec = spring(dampingRatio = 0.75f, stiffness = 520f),
         label = "card_press_scale"
     )
 
-    val isActivelyHighlighted = glowAlpha >= 0.55f && borderColor != TitaniumHairline && borderColor != SpaceCardBorder
-    val resolvedBorderColor = if (isActivelyHighlighted) {
-        borderColor.copy(alpha = 0.55f)
+    val strictCardShape = RoundedCornerShape(24.dp)
+    val resolvedBorderColor = if (useCustomBorder) {
+        borderColor
     } else {
-        TitaniumHairline
+        KshanBorder
     }
 
     Box(
         modifier = modifier
             .scale(scale)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(ObsidianGlass)
+            .clip(strictCardShape)
+            .background(KshanSurface.copy(alpha = surfaceAlpha))
             .border(
-                width = 0.8.dp,
+                width = 1.dp,
                 color = resolvedBorderColor,
-                shape = RoundedCornerShape(cornerRadius)
+                shape = strictCardShape
             )
             .padding(18.dp),
         content = content
@@ -127,7 +136,7 @@ fun FrostedGlassCard(
 @Composable
 fun CyberCard(
     modifier: Modifier = Modifier,
-    borderColor: Color = TitaniumHairline,
+    borderColor: Color = KshanBorder,
     glowAlpha: Float = 0.25f,
     cornerRadius: Dp = 24.dp,
     content: @Composable BoxScope.() -> Unit
@@ -135,12 +144,13 @@ fun CyberCard(
     modifier = modifier,
     borderColor = borderColor,
     glowAlpha = glowAlpha,
-    cornerRadius = cornerRadius,
+    cornerRadius = 24.dp,
     content = content
 )
 
 /**
- * Connected Date Cards with floating center badge (⇄ or +/−).
+ * Unified Split Card (`24.dp` radius, `#121620` surface, `1.dp` `Color.White.copy(alpha = 0.08f)` border)
+ * with a `1.dp` vertical hairline divider and a centered full-pill (`RoundedCornerShape(100)`) action badge.
  */
 @Composable
 fun ConnectedDateCards(
@@ -149,61 +159,96 @@ fun ConnectedDateCards(
     modifier: Modifier = Modifier,
     connectorIcon: ImageVector? = null,
     connectorLabel: String = "⇄",
-    accentColor: Color = IceCyan
+    accentColor: Color = KshanCyan,
+    onConnectorClick: (() -> Unit)? = null
 ) {
+    val view = LocalView.current
+    val cardShape = RoundedCornerShape(24.dp)
+
     Box(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(cardShape)
+            .background(KshanSurface)
+            .border(1.dp, KshanBorder, cardShape),
         contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(IntrinsicSize.Max),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .padding(start = 18.dp, top = 16.dp, bottom = 16.dp, end = 22.dp)
             ) {
                 startContent()
             }
+
+            // 1.dp 8% White Vertical Hairline Divider
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .padding(vertical = 12.dp)
+                    .background(KshanBorder)
+            )
+
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
+                    .padding(start = 22.dp, top = 16.dp, bottom = 16.dp, end = 18.dp)
             ) {
                 endContent()
             }
         }
 
-        // Subtle Titanium Center Connector Badge
+        // Centered Full-Pill Connector / Swap Button
         Box(
             modifier = Modifier
                 .size(34.dp)
-                .clip(CircleShape)
-                .background(Color(0xFF0A0E17))
+                .clip(KshanPillShape)
+                .background(KshanBackground)
                 .border(
-                    width = 0.8.dp,
-                    color = Color.White.copy(alpha = 0.16f),
-                    shape = CircleShape
-                ),
+                    width = 1.dp,
+                    color = KshanBorder,
+                    shape = KshanPillShape
+                )
+                .then(
+                    if (onConnectorClick != null) {
+                        Modifier.clickable {
+                            try {
+                                view.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                            } catch (e: Exception) {
+                                Log.w("ConnectedDateCards", "Haptic unavailable", e)
+                            }
+                            onConnectorClick()
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
+                .testTag("unified_card_connector_pill"),
             contentAlignment = Alignment.Center
         ) {
             if (connectorIcon != null) {
                 Icon(
                     imageVector = connectorIcon,
-                    contentDescription = "Connector",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(16.dp)
+                    contentDescription = "Swap or Shift",
+                    tint = KshanCyan,
+                    modifier = Modifier.size(15.dp)
                 )
             } else {
                 Text(
                     text = connectorLabel,
                     fontFamily = SpaceGroteskFontFamily,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary
+                    color = KshanCyan
                 )
             }
         }
@@ -211,8 +256,10 @@ fun ConnectedDateCards(
 }
 
 /**
- * Minimalist Luxury Ambient Hero Result Readout.
- * Sits in clean, generous negative space with a soft monochrome/ice-cyan radial glow.
+ * Ambient Hero Result Readout:
+ * - Metric Label: 10.sp uppercase, letterSpacing = 1.2.sp, Color.White.copy(alpha = 0.50f)
+ * - Hero Number: Pure White (#FFFFFF) JetBrains Mono (tnum)
+ * - Breakdown Pill: RoundedCornerShape(100) (#121620 surface, 1.dp 8% white border)
  */
 @Composable
 fun AmbientHeroResult(
@@ -220,24 +267,24 @@ fun AmbientHeroResult(
     label: String,
     breakdownText: String,
     modifier: Modifier = Modifier,
-    accentColor: Color = IceCyan,
+    accentColor: Color = KshanCyan,
     testTag: String = "hero_main_number"
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 6.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Soft Monochrome / Ice-Cyan Radial Glow
+        // Subtle radial glow behind the hero number
         Box(
             modifier = Modifier
-                .size(200.dp)
+                .size(180.dp)
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            IceCyan.copy(alpha = 0.10f),
-                            Color.White.copy(alpha = 0.03f),
+                            KshanCyan.copy(alpha = 0.08f),
+                            Color.White.copy(alpha = 0.02f),
                             Color.Transparent
                         )
                     )
@@ -250,43 +297,42 @@ fun AmbientHeroResult(
         ) {
             Text(
                 text = label.uppercase(),
-                fontFamily = SpaceGroteskFontFamily,
-                fontSize = 11.5.sp,
-                fontWeight = FontWeight.SemiBold,
-                letterSpacing = 2.sp,
-                color = TextMuted
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = mainValue,
-                fontFamily = TabularMonoFontFamily,
-                fontSize = 68.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                modifier = Modifier.testTag(testTag)
+                style = MetricLabelTextStyle
             )
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Quiet Titanium Pill
+            Text(
+                text = mainValue,
+                style = TextStyle(
+                    fontFamily = JetBrainsMonoFontFamily,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 64.sp,
+                    fontFeatureSettings = "tnum",
+                    color = TextPrimary
+                ),
+                modifier = Modifier.testTag(testTag)
+            )
+
+            Spacer(modifier = Modifier.height(6.dp))
+
+            // Full-Pill Breakdown Capsule
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(50))
-                    .background(ObsidianGlass)
+                    .clip(KshanPillShape)
+                    .background(KshanSurface)
                     .border(
-                        width = 0.8.dp,
-                        color = TitaniumHairline,
-                        shape = RoundedCornerShape(50)
+                        width = 1.dp,
+                        color = KshanBorder,
+                        shape = KshanPillShape
                     )
                     .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = breakdownText,
                     fontFamily = SpaceGroteskFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
                     color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
@@ -296,10 +342,13 @@ fun AmbientHeroResult(
 }
 
 /**
- * Unified Hero Orbital Timepiece Card.
- *
- * - Supports a dedicated "Today ✦" celebration badge when a milestone occurs today.
- * - Disables/hides the "+ Days Since" toggle when `canUseCountUpMode == false` (strictly future events).
+ * Unified Hero Orbital Timepiece Card (Tab 3 — Kshans):
+ * - 24.dp corner radius, #121620 surface, 1.dp Color.White.copy(alpha = 0.08f) border (no outer blue border)
+ * - Event Title: 18.sp FontWeight.Medium sans-serif
+ * - Digits (DAYS, HOURS, MINS, SECS): All Pure White (#FFFFFF) JetBrains Mono (tnum)
+ * - SECS digit: 150ms vertical flip + subtle opacity pulse on each tick
+ * - Real-Life Context Line directly below the ticking digits in JetBrains Mono
+ * - Full-pill [ − Count Down | + Days Since ] segmented switch
  */
 @Composable
 fun HeroOrbitalTimepiece(
@@ -311,19 +360,20 @@ fun HeroOrbitalTimepiece(
     eventTitle: String,
     statusText: String,
     modifier: Modifier = Modifier,
-    accentColor: Color = IceCyan,
+    accentColor: Color = KshanCyan,
     isCountUpMode: Boolean = false,
     canUseCountUpMode: Boolean = false,
     isAutoRolled: Boolean = false,
     isTodayCelebration: Boolean = false,
     targetYear: Int? = null,
+    contextLine: String = "",
     onToggleCountUpMode: ((Boolean) -> Unit)? = null
 ) {
     val view = LocalView.current
     val infiniteTransition = rememberInfiniteTransition(label = "timepiece_colon")
     val colonAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.35f,
-        targetValue = 1f,
+        initialValue = 0.30f,
+        targetValue = 0.90f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
             repeatMode = RepeatMode.Reverse
@@ -331,39 +381,15 @@ fun HeroOrbitalTimepiece(
         label = "colon_blink"
     )
 
-    val effectiveAccent = if (isTodayCelebration) WarmChampagne else IceCyan
-
     FrostedGlassCard(
         modifier = modifier.fillMaxWidth(),
-        borderColor = effectiveAccent,
-        glowAlpha = 0.6f,
-        cornerRadius = 26.dp
+        cornerRadius = 24.dp,
+        useCustomBorder = false
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Subtle Top Specular Line
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(1.dp))
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color.Transparent,
-                                effectiveAccent.copy(alpha = 0.65f),
-                                Color.White.copy(alpha = 0.55f),
-                                effectiveAccent.copy(alpha = 0.65f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
             // Category, Auto-Rollover / Today ✦ Badge & Status
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -371,18 +397,14 @@ fun HeroOrbitalTimepiece(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.White.copy(alpha = 0.06f))
-                        .border(0.8.dp, TitaniumHairline, RoundedCornerShape(8.dp))
+                        .clip(KshanPillShape)
+                        .background(Color.White.copy(alpha = 0.05f))
+                        .border(1.dp, KshanBorder, KshanPillShape)
                         .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = categoryName.uppercase(),
-                        fontFamily = SpaceGroteskFontFamily,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        letterSpacing = 1.sp,
-                        color = effectiveAccent
+                        style = MetricLabelTextStyle.copy(color = KshanCyan)
                     )
                 }
 
@@ -390,35 +412,33 @@ fun HeroOrbitalTimepiece(
                     Spacer(modifier = Modifier.width(6.dp))
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(WarmChampagne.copy(alpha = 0.16f))
-                            .border(0.8.dp, WarmChampagne.copy(alpha = 0.55f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 9.dp, vertical = 3.dp)
+                            .clip(KshanPillShape)
+                            .background(VisionGold.copy(alpha = 0.14f))
+                            .border(1.dp, VisionGold.copy(alpha = 0.45f), KshanPillShape)
+                            .padding(horizontal = 10.dp, vertical = 3.dp)
                             .testTag("hero_today_celebration_badge")
                     ) {
                         Text(
-                            text = "Today ✦",
-                            fontFamily = SpaceGroteskFontFamily,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = WarmChampagne
+                            text = "TODAY ✦",
+                            style = MetricLabelTextStyle.copy(color = VisionGold)
                         )
                     }
                 } else if (isAutoRolled && targetYear != null) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(WarmChampagne.copy(alpha = 0.14f))
-                            .border(0.8.dp, WarmChampagne.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                            .clip(KshanPillShape)
+                            .background(Color.White.copy(alpha = 0.05f))
+                            .border(1.dp, KshanBorder, KshanPillShape)
+                            .padding(horizontal = 9.dp, vertical = 3.dp)
                     ) {
                         Text(
-                            text = "↻ Next: $targetYear",
-                            fontFamily = CourierPrimeFontFamily,
-                            fontSize = 10.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = WarmChampagne
+                            text = "↻ NEXT: $targetYear",
+                            style = MetricLabelTextStyle.copy(
+                                fontFamily = JetBrainsMonoFontFamily,
+                                fontFeatureSettings = "tnum",
+                                color = TextSecondary
+                            )
                         )
                     }
                 }
@@ -426,29 +446,23 @@ fun HeroOrbitalTimepiece(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = statusText,
-                    fontFamily = SpaceGroteskFontFamily,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = if (isTodayCelebration) WarmChampagne else TextSecondary
+                    text = statusText.uppercase(),
+                    style = MetricLabelTextStyle
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Event Title
+            // Card Title: 18.sp FontWeight.Medium sans-serif
             Text(
                 text = eventTitle,
-                fontFamily = SpaceGroteskFontFamily,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = TextPrimary,
+                style = CardTitleTextStyle,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Unified Monospace Digits Readout with Pulsing Colons
+            // Unified Monospace Digits Readout (All Pure White #FFFFFF, JetBrains Mono tnum, 150ms vertical flip on SECS)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -458,28 +472,51 @@ fun HeroOrbitalTimepiece(
                     value = if (isCountUpMode) "+${String.format("%02d", days)}" else String.format("%02d", days),
                     label = if (isCountUpMode) "DAYS SINCE" else "DAYS"
                 )
-                PulsingColon(alpha = colonAlpha, accentColor = effectiveAccent)
+                PulsingColon(alpha = colonAlpha)
                 DigitBlock(value = String.format("%02d", hours), label = "HOURS")
-                PulsingColon(alpha = colonAlpha, accentColor = effectiveAccent)
+                PulsingColon(alpha = colonAlpha)
                 DigitBlock(value = String.format("%02d", minutes), label = "MINS")
-                PulsingColon(alpha = colonAlpha, accentColor = effectiveAccent)
-                DigitBlock(
-                    value = String.format("%02d", seconds),
-                    label = "SECS",
-                    isHighlight = true,
-                    highlightColor = effectiveAccent
+                PulsingColon(alpha = colonAlpha)
+                AnimatedSecondsDigitBlock(
+                    secondsValue = String.format("%02d", seconds),
+                    label = "SECS"
                 )
             }
 
-            // Only show the Count Down / Days Since toggle pill when the event has a past origin timestamp
+            // Real-Life Context Line directly below the ticking digits in JetBrains Mono
+            if (contextLine.isNotBlank()) {
+                Spacer(modifier = Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(KshanPillShape)
+                        .background(KshanBackground.copy(alpha = 0.75f))
+                        .border(1.dp, KshanBorder, KshanPillShape)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .testTag("hero_real_life_context_line")
+                ) {
+                    Text(
+                        text = contextLine,
+                        style = TextStyle(
+                            fontFamily = JetBrainsMonoFontFamily,
+                            fontWeight = FontWeight.Medium,
+                            fontSize = 11.5.sp,
+                            fontFeatureSettings = "tnum",
+                            color = TextSecondary
+                        ),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            // Only show the Count Down / Days Since full-pill toggle when the event has a past origin timestamp
             if (onToggleCountUpMode != null && canUseCountUpMode) {
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Row(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(SpaceDark.copy(alpha = 0.9f))
-                        .border(0.8.dp, TitaniumHairline, RoundedCornerShape(50))
+                        .clip(KshanPillShape)
+                        .background(KshanBackground)
+                        .border(1.dp, KshanBorder, KshanPillShape)
                         .padding(3.dp)
                         .testTag("countdown_mode_selector"),
                     verticalAlignment = Alignment.CenterVertically
@@ -487,10 +524,10 @@ fun HeroOrbitalTimepiece(
                     val isDown = !isCountUpMode
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(if (isDown) effectiveAccent.copy(alpha = 0.18f) else Color.Transparent)
+                            .clip(KshanPillShape)
+                            .background(if (isDown) KshanCyan.copy(alpha = 0.16f) else Color.Transparent)
                             .then(
-                                if (isDown) Modifier.border(0.8.dp, effectiveAccent.copy(alpha = 0.55f), RoundedCornerShape(50))
+                                if (isDown) Modifier.border(1.dp, KshanCyan.copy(alpha = 0.55f), KshanPillShape)
                                 else Modifier
                             )
                             .clickable {
@@ -501,7 +538,7 @@ fun HeroOrbitalTimepiece(
                                 }
                                 onToggleCountUpMode(false)
                             }
-                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
                             .testTag("mode_pill_count_down")
                     ) {
                         Text(
@@ -509,16 +546,16 @@ fun HeroOrbitalTimepiece(
                             fontFamily = SpaceGroteskFontFamily,
                             fontSize = 11.5.sp,
                             fontWeight = if (isDown) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isDown) effectiveAccent else TextSecondary
+                            color = if (isDown) KshanCyan else TextSecondary
                         )
                     }
 
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(if (isCountUpMode) effectiveAccent.copy(alpha = 0.18f) else Color.Transparent)
+                            .clip(KshanPillShape)
+                            .background(if (isCountUpMode) KshanCyan.copy(alpha = 0.16f) else Color.Transparent)
                             .then(
-                                if (isCountUpMode) Modifier.border(0.8.dp, effectiveAccent.copy(alpha = 0.55f), RoundedCornerShape(50))
+                                if (isCountUpMode) Modifier.border(1.dp, KshanCyan.copy(alpha = 0.55f), KshanPillShape)
                                 else Modifier
                             )
                             .clickable {
@@ -529,7 +566,7 @@ fun HeroOrbitalTimepiece(
                                 }
                                 onToggleCountUpMode(true)
                             }
-                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
                             .testTag("mode_pill_days_since")
                     ) {
                         Text(
@@ -537,7 +574,7 @@ fun HeroOrbitalTimepiece(
                             fontFamily = SpaceGroteskFontFamily,
                             fontSize = 11.5.sp,
                             fontWeight = if (isCountUpMode) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (isCountUpMode) effectiveAccent else TextSecondary
+                            color = if (isCountUpMode) KshanCyan else TextSecondary
                         )
                     }
                 }
@@ -549,42 +586,79 @@ fun HeroOrbitalTimepiece(
 @Composable
 private fun DigitBlock(
     value: String,
-    label: String,
-    isHighlight: Boolean = false,
-    highlightColor: Color = IceCyan
+    label: String
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            fontFamily = TabularMonoFontFamily,
-            fontSize = 32.sp,
-            fontWeight = FontWeight.Bold,
-            color = if (isHighlight) highlightColor else TextPrimary
+            style = TextStyle(
+                fontFamily = JetBrainsMonoFontFamily,
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold,
+                fontFeatureSettings = "tnum",
+                color = TextPrimary // Pure White (#FFFFFF)
+            )
         )
+        Spacer(modifier = Modifier.height(2.dp))
         Text(
-            text = label,
-            fontFamily = SpaceGroteskFontFamily,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = if (isHighlight) highlightColor else TextMuted
+            text = label.uppercase(),
+            style = MetricLabelTextStyle
+        )
+    }
+}
+
+/**
+ * Pure White (#FFFFFF) SECS digit block with a 150ms vertical flip + subtle opacity pulse on each tick.
+ */
+@Composable
+private fun AnimatedSecondsDigitBlock(
+    secondsValue: String,
+    label: String
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        AnimatedContent(
+            targetState = secondsValue,
+            transitionSpec = {
+                (slideInVertically(tween(150)) { h -> h / 2 } + fadeIn(animationSpec = tween(150), initialAlpha = 0.35f)) togetherWith
+                        (slideOutVertically(tween(150)) { h -> -h / 2 } + fadeOut(tween(150)))
+            },
+            label = "secs_150ms_vertical_flip"
+        ) { secStr ->
+            Text(
+                text = secStr,
+                style = TextStyle(
+                    fontFamily = JetBrainsMonoFontFamily,
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFeatureSettings = "tnum",
+                    color = TextPrimary // Pure White (#FFFFFF) — never blue
+                )
+            )
+        }
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text = label.uppercase(),
+            style = MetricLabelTextStyle
         )
     }
 }
 
 @Composable
-private fun PulsingColon(alpha: Float, accentColor: Color) {
+private fun PulsingColon(alpha: Float) {
     Box(
         modifier = Modifier
             .padding(horizontal = 6.dp)
-            .offset(y = (-6).dp),
+            .offset(y = (-7).dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = ":",
-            fontFamily = TabularMonoFontFamily,
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = accentColor.copy(alpha = alpha)
+            style = TextStyle(
+                fontFamily = JetBrainsMonoFontFamily,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White.copy(alpha = alpha)
+            )
         )
     }
 }
@@ -595,7 +669,7 @@ fun ModernPillButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isPrimary: Boolean = true,
-    accentColor: Color = IceCyan,
+    accentColor: Color = KshanCyan,
     icon: ImageVector? = null,
     testTag: String = "modern_pill_button"
 ) {
@@ -608,24 +682,24 @@ fun ModernPillButton(
         label = "pill_button_scale"
     )
 
-    val resolvedAccent = if (isPrimary) accentColor else TextPrimary
+    val resolvedAccent = if (isPrimary) KshanCyan else TextPrimary
 
     Box(
         modifier = modifier
             .scale(scale)
-            .height(50.dp)
-            .clip(RoundedCornerShape(25.dp))
+            .height(48.dp)
+            .clip(KshanPillShape)
             .background(
                 if (isPrimary) {
-                    accentColor.copy(alpha = 0.16f)
+                    KshanCyan.copy(alpha = 0.16f)
                 } else {
-                    ObsidianGlass
+                    KshanSurface
                 }
             )
             .border(
-                width = 0.8.dp,
-                color = if (isPrimary) accentColor.copy(alpha = 0.55f) else TitaniumHairline,
-                shape = RoundedCornerShape(25.dp)
+                width = 1.dp,
+                color = if (isPrimary) KshanCyan.copy(alpha = 0.55f) else KshanBorder,
+                shape = KshanPillShape
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -656,7 +730,7 @@ fun ModernPillButton(
             Text(
                 text = text,
                 fontFamily = SpaceGroteskFontFamily,
-                fontSize = 14.5.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.2.sp,
                 color = resolvedAccent
@@ -672,7 +746,7 @@ fun CyberButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isPrimary: Boolean = true,
-    accentColor: Color = IceCyan,
+    accentColor: Color = KshanCyan,
     testTag: String = "cyber_button"
 ) = ModernPillButton(
     text = text,
@@ -688,7 +762,7 @@ fun ModernToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    activeColor: Color = IceCyan,
+    activeColor: Color = KshanCyan,
     testTag: String = "modern_toggle"
 ) {
     val view = LocalView.current
@@ -698,11 +772,11 @@ fun ModernToggle(
         label = "thumb_offset"
     )
     val trackColor by animateColorAsState(
-        targetValue = if (checked) activeColor.copy(alpha = 0.20f) else SpaceCard,
+        targetValue = if (checked) KshanCyan.copy(alpha = 0.20f) else KshanBackground,
         label = "track_color"
     )
     val borderColor by animateColorAsState(
-        targetValue = if (checked) activeColor.copy(alpha = 0.6f) else TitaniumHairline,
+        targetValue = if (checked) KshanCyan.copy(alpha = 0.6f) else KshanBorder,
         label = "border_color"
     )
 
@@ -710,9 +784,9 @@ fun ModernToggle(
         modifier = modifier
             .width(50.dp)
             .height(28.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(KshanPillShape)
             .background(trackColor)
-            .border(0.8.dp, borderColor, RoundedCornerShape(14.dp))
+            .border(1.dp, borderColor, KshanPillShape)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -732,7 +806,7 @@ fun ModernToggle(
                 .padding(start = thumbOffset)
                 .size(22.dp)
                 .clip(CircleShape)
-                .background(if (checked) activeColor else TextMuted)
+                .background(if (checked) KshanCyan else TextMuted)
         )
     }
 }
@@ -743,7 +817,7 @@ fun CyberToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    activeColor: Color = IceCyan,
+    activeColor: Color = KshanCyan,
     testTag: String = "cyber_toggle"
 ) = ModernToggle(
     checked = checked,
@@ -759,7 +833,8 @@ fun ModernCapsuleChip(
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    accentColor: Color = IceCyan
+    accentColor: Color = KshanCyan,
+    testTag: String = ""
 ) {
     val view = LocalView.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -773,12 +848,12 @@ fun ModernCapsuleChip(
     Box(
         modifier = modifier
             .scale(scale)
-            .clip(RoundedCornerShape(50))
-            .background(if (isSelected) accentColor.copy(alpha = 0.16f) else ObsidianGlass)
+            .clip(KshanPillShape)
+            .background(if (isSelected) KshanCyan.copy(alpha = 0.16f) else KshanSurface)
             .border(
-                width = 0.8.dp,
-                color = if (isSelected) accentColor.copy(alpha = 0.65f) else TitaniumHairline,
-                shape = RoundedCornerShape(50)
+                width = 1.dp,
+                color = if (isSelected) KshanCyan.copy(alpha = 0.65f) else KshanBorder,
+                shape = KshanPillShape
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -793,19 +868,20 @@ fun ModernCapsuleChip(
                 }
             )
             .padding(horizontal = 15.dp, vertical = 8.dp)
+            .then(if (testTag.isNotEmpty()) Modifier.testTag(testTag) else Modifier)
     ) {
         Text(
             text = label,
             fontFamily = SpaceGroteskFontFamily,
             fontSize = 12.5.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (isSelected) accentColor else TextSecondary
+            color = if (isSelected) KshanCyan else TextSecondary
         )
     }
 }
 
 /**
- * Subtle Frosted Action Icon Button for saved countdown cards.
+ * Full-Pill Action Icon Button for saved countdown cards (Pin button).
  */
 @Composable
 fun FrostedActionButton(
@@ -814,7 +890,7 @@ fun FrostedActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isActive: Boolean = false,
-    activeColor: Color = IceCyan,
+    activeColor: Color = KshanCyan,
     testTag: String = ""
 ) {
     val view = LocalView.current
@@ -830,14 +906,14 @@ fun FrostedActionButton(
         modifier = modifier
             .scale(scale)
             .size(36.dp)
-            .clip(CircleShape)
+            .clip(KshanPillShape)
             .background(
-                if (isActive) activeColor.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.05f)
+                if (isActive) KshanCyan.copy(alpha = 0.16f) else Color.White.copy(alpha = 0.04f)
             )
             .border(
-                width = 0.8.dp,
-                color = if (isActive) activeColor.copy(alpha = 0.55f) else TitaniumHairline,
-                shape = CircleShape
+                width = 1.dp,
+                color = if (isActive) KshanCyan.copy(alpha = 0.55f) else KshanBorder,
+                shape = KshanPillShape
             )
             .clickable(
                 interactionSource = interactionSource,
@@ -857,7 +933,7 @@ fun FrostedActionButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = if (isActive) activeColor else TextSecondary,
+            tint = if (isActive) KshanCyan else TextSecondary,
             modifier = Modifier.size(16.dp)
         )
     }
@@ -878,6 +954,7 @@ fun CyberDatePickerDialog(
 
     DatePickerDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
         confirmButton = {
             TextButton(
                 onClick = {
@@ -897,7 +974,7 @@ fun CyberDatePickerDialog(
             ) {
                 Text(
                     text = "Select Date",
-                    color = IceCyan,
+                    color = KshanCyan,
                     fontFamily = SpaceGroteskFontFamily,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 14.sp
@@ -924,27 +1001,27 @@ fun CyberDatePickerDialog(
             }
         },
         colors = DatePickerDefaults.colors(
-            containerColor = SpaceDark
+            containerColor = KshanSurface
         )
     ) {
         DatePicker(
             state = datePickerState,
             colors = DatePickerDefaults.colors(
-                containerColor = SpaceDark,
-                titleContentColor = IceCyan,
+                containerColor = KshanSurface,
+                titleContentColor = KshanCyan,
                 headlineContentColor = TextPrimary,
                 weekdayContentColor = TextSecondary,
                 subheadContentColor = TextSecondary,
                 yearContentColor = TextPrimary,
-                currentYearContentColor = IceCyan,
-                selectedYearContentColor = SpaceBlack,
-                selectedYearContainerColor = IceCyan,
+                currentYearContentColor = KshanCyan,
+                selectedYearContentColor = KshanBackground,
+                selectedYearContainerColor = KshanCyan,
                 dayContentColor = TextPrimary,
                 disabledDayContentColor = TextMuted,
-                selectedDayContentColor = SpaceBlack,
-                selectedDayContainerColor = IceCyan,
-                todayContentColor = WarmChampagne,
-                todayDateBorderColor = WarmChampagne
+                selectedDayContentColor = KshanBackground,
+                selectedDayContainerColor = KshanCyan,
+                todayContentColor = KshanCyan,
+                todayDateBorderColor = KshanCyan
             )
         )
     }

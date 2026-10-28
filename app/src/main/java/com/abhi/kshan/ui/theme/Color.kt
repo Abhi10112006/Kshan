@@ -2,29 +2,46 @@ package com.abhi.kshan.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Minimalist Luxury "Titanium & Ice" Monochrome Palette
-val SpaceBlack = Color(0xFF030509)
-val SpaceDark = Color(0xFF070B12)
-val ObsidianGlass = Color(0xFF0A0E17).copy(alpha = 0.85f)
-val SpaceCard = Color(0xFF0A0E17)
-val TitaniumHairline = Color.White.copy(alpha = 0.10f)
-val SpaceCardBorder = Color(0x1AFFFFFF) // White.copy(alpha = 0.10f)
-val SpaceSurface = Color(0xFF0E1420)
+// Strict 4-Color Design System for क्षण (Kshan)
+// 1. Background (#070A12)
+val KshanBackground = Color(0xFF070A12)
+val SpaceBlack = KshanBackground
 
-// Restrained Luxury Accents (Ice Cyan & Warm Champagne)
-val IceCyan = Color(0xFF38BDF8)
-val WarmChampagne = Color(0xFFE5C158)
+// 2. Surface (#121620)
+val KshanSurface = Color(0xFF121620)
+val SpaceDark = KshanSurface
+val SpaceCard = KshanSurface
+val SpaceSurface = KshanSurface
+val ObsidianGlass = KshanSurface
+
+// 3. Border (1.dp solid Color.White.copy(alpha = 0.08f))
+val KshanBorder = Color.White.copy(alpha = 0.08f)
+val KshanUnpinnedBorder = Color.White.copy(alpha = 0.06f)
+val TitaniumHairline = KshanBorder
+val SpaceCardBorder = KshanBorder
+
+// 4. Accent: Single Interactive Cyan (#2ABFFF) + Exclusive Vision Gold (#E6C87A)
+val KshanCyan = Color(0xFF2ABFFF)
+val IceCyan = KshanCyan
+val VisionGold = Color(0xFFE6C87A)
+val WarmChampagne = VisionGold
 val BrushedSilver = Color(0xFFCBD5E1)
 
-// Mapped Legacy Tokens -> Titanium & Ice Palette (eliminates neon rainbow clutter)
-val NeonCyan = IceCyan
-val NeonBlue = Color(0xFF7DD3FC)
-val NeonPurple = BrushedSilver
-val NeonPink = WarmChampagne
-val NeonEmerald = IceCyan
-val NeonAmber = WarmChampagne
+// Category Dot Accents for Saved Kshans
+val CategoryGoalDot = Color(0xFF2ABFFF)
+val CategoryBirthdayDot = Color(0xFFF472B6)
+val CategoryHolidayDot = Color(0xFFE6C87A)
+val CategoryKshanDot = Color(0xFF10B981)
+
+// Legacy Token Mappings -> Strict 4-Color System
+val NeonCyan = KshanCyan
+val NeonBlue = KshanCyan
+val NeonPurple = KshanCyan
+val NeonPink = VisionGold
+val NeonEmerald = KshanCyan
+val NeonAmber = VisionGold
 
 // Text & Telemetry Hierarchy
-val TextPrimary = Color(0xFFF8FAFC)
-val TextSecondary = Color(0xFF94A3B8)
-val TextMuted = Color(0xFF64748B)
+val TextPrimary = Color(0xFFFFFFFF)
+val TextSecondary = Color.White.copy(alpha = 0.72f)
+val TextMuted = Color.White.copy(alpha = 0.50f)

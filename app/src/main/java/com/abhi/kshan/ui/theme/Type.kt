@@ -1,6 +1,7 @@
 package com.abhi.kshan.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -10,18 +11,16 @@ import com.abhi.kshan.R
 
 /**
  * Hard-bundled Google Fonts in res/font/ (OFL 1.1) — see assets/FONT_LICENSES.txt:
- * - Space Grotesk (Regular 400 & SemiBold 600): Clean architectural UI labels, headers, cards, pills
- * - Courier Prime (Bold 700, tnum): Tabular numbers, dates, countdown timers, percentages
+ * - Space Grotesk: Architectural UI labels, headers, card titles (18.sp Medium), metric labels (10.sp uppercase)
+ * - JetBrains Mono (tnum): All dates, countdown digits, hero numbers, percentages, focus hours, Unix timestamps
  * - Kalam (Bold 700): Strictly isolated to the Devanagari "क्षण" brand emblem
  */
 
-// Kalam (Bold 700) strictly isolated to the single Devanagari brand emblem ("क्षण")
 val KalamFont = FontFamily(
     Font(R.font.kalam, FontWeight.Bold)
 )
 val KalamFontFamily = KalamFont
 
-// Space Grotesk (Regular 400 & SemiBold 600) bundled locally for architectural UI labels & headers
 val SpaceGroteskFontFamily = FontFamily(
     Font(R.font.space_grotesk, FontWeight.Normal),
     Font(R.font.space_grotesk, FontWeight.Medium),
@@ -29,34 +28,60 @@ val SpaceGroteskFontFamily = FontFamily(
     Font(R.font.space_grotesk, FontWeight.Bold)
 )
 
-// Backward-compatible aliases mapped strictly to SpaceGroteskFontFamily
+// Backward-compatible sans-serif aliases
 val ComicNeueFontFamily = SpaceGroteskFontFamily
 val ComicFontFamily = SpaceGroteskFontFamily
 val SansFontFamily = SpaceGroteskFontFamily
 
-// Courier Prime (Regular 400 & Bold 700) mechanical Typewriter font with tabular numerals ("tnum")
-val CourierPrimeFontFamily = FontFamily(
-    Font(R.font.courier_prime, FontWeight.Normal),
-    Font(R.font.courier_prime, FontWeight.Bold)
+// Bundled JetBrains Mono with tabular numerals ("tnum") for all numerical & date readouts
+val JetBrainsMonoFontFamily = FontFamily(
+    Font(R.font.jetbrains_mono, FontWeight.Normal),
+    Font(R.font.jetbrains_mono, FontWeight.Medium),
+    Font(R.font.jetbrains_mono, FontWeight.SemiBold),
+    Font(R.font.jetbrains_mono, FontWeight.Bold)
 )
-val TypewriterFontFamily = CourierPrimeFontFamily
-val TabularMonoFontFamily = CourierPrimeFontFamily
+
+// Map all monospace aliases to JetBrainsMonoFontFamily so every date & number uses JetBrains Mono (tnum)
+val CourierPrimeFontFamily = JetBrainsMonoFontFamily
+val TypewriterFontFamily = JetBrainsMonoFontFamily
+val TabularMonoFontFamily = JetBrainsMonoFontFamily
 
 val TabularMonoTextStyle = TextStyle(
-    fontFamily = CourierPrimeFontFamily,
+    fontFamily = JetBrainsMonoFontFamily,
     fontWeight = FontWeight.Bold,
     fontFeatureSettings = "tnum"
 )
 
 val TypewriterNumericStyle = TextStyle(
-    fontFamily = CourierPrimeFontFamily,
+    fontFamily = JetBrainsMonoFontFamily,
     fontWeight = FontWeight.Bold,
     fontFeatureSettings = "tnum"
 )
 
 /**
- * Full Material 3 Typography mapping all 15 slots strictly to bundled res/font/ resources.
+ * Strict Category & Metric Label Style:
+ * 10.sp uppercase, letterSpacing = 1.2.sp, Color.White.copy(alpha = 0.50f)
  */
+val MetricLabelTextStyle = TextStyle(
+    fontFamily = SpaceGroteskFontFamily,
+    fontWeight = FontWeight.SemiBold,
+    fontSize = 10.sp,
+    letterSpacing = 1.2.sp,
+    color = Color.White.copy(alpha = 0.50f)
+)
+
+/**
+ * Strict Card Title Style:
+ * 18.sp FontWeight.Medium sans-serif
+ */
+val CardTitleTextStyle = TextStyle(
+    fontFamily = SpaceGroteskFontFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 18.sp,
+    lineHeight = 24.sp,
+    color = TextPrimary
+)
+
 val Typography = Typography(
     displayLarge = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
@@ -67,7 +92,7 @@ val Typography = Typography(
         color = TextPrimary
     ),
     displayMedium = TextStyle(
-        fontFamily = CourierPrimeFontFamily,
+        fontFamily = JetBrainsMonoFontFamily,
         fontWeight = FontWeight.Bold,
         fontSize = 36.sp,
         lineHeight = 40.sp,
@@ -98,26 +123,26 @@ val Typography = Typography(
     ),
     headlineSmall = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
         color = TextPrimary
     ),
     titleLarge = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.SemiBold,
-        fontSize = 20.sp,
-        lineHeight = 26.sp,
-        letterSpacing = (-0.3).sp,
+        fontWeight = FontWeight.Medium,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+        letterSpacing = (-0.2).sp,
         color = TextPrimary
     ),
     titleMedium = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.SemiBold,
+        fontWeight = FontWeight.Medium,
         fontSize = 15.sp,
         lineHeight = 20.sp,
-        letterSpacing = (-0.2).sp,
-        color = IceCyan
+        letterSpacing = (-0.1).sp,
+        color = KshanCyan
     ),
     titleSmall = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
@@ -157,17 +182,18 @@ val Typography = Typography(
     ),
     labelMedium = TextStyle(
         fontFamily = SpaceGroteskFontFamily,
-        fontWeight = FontWeight.Normal,
-        fontSize = 12.sp,
-        lineHeight = 16.sp,
-        color = TextSecondary
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 10.sp,
+        lineHeight = 14.sp,
+        letterSpacing = 1.2.sp,
+        color = TextMuted
     ),
     labelSmall = TextStyle(
-        fontFamily = CourierPrimeFontFamily,
+        fontFamily = JetBrainsMonoFontFamily,
         fontWeight = FontWeight.Bold,
-        fontSize = 11.sp,
+        fontSize = 10.sp,
         lineHeight = 14.sp,
-        letterSpacing = 1.0.sp,
+        letterSpacing = 1.2.sp,
         fontFeatureSettings = "tnum",
         color = TextMuted
     )

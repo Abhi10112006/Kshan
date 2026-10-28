@@ -5,12 +5,17 @@ SIL OPEN FONT LICENSE (OFL 1.1) — BUNDLED FONTS ATTRIBUTION
    Licensed under the SIL Open Font License, Version 1.1 (https://scripts.sil.org/OFL)
    Bundled resource: res/font/space_grotesk.ttf
 
-2. Courier Prime
+2. JetBrains Mono
+   Copyright (c) 2020 JetBrains s.r.o. (jetbrains.com/lp/mono)
+   Licensed under the SIL Open Font License, Version 1.1 (https://scripts.sil.org/OFL)
+   Bundled resource: res/font/jetbrains_mono.ttf
+
+3. Courier Prime
    Copyright (c) 2013 Quote-Unquote Apps (quoteunquoteapps.com)
    Licensed under the SIL Open Font License, Version 1.1 (https://scripts.sil.org/OFL)
    Bundled resource: res/font/courier_prime.ttf
 
-3. Kalam
+4. Kalam
    Copyright (c) 2014 Indian Type Foundry (indiantypefoundry.com)
    Licensed under the SIL Open Font License, Version 1.1 (https://scripts.sil.org/OFL)
    Bundled resource: res/font/kalam.ttf

@@ -64,40 +64,35 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.abhi.kshan.data.ChronoEvent
 import com.abhi.kshan.engine.TimeEngine
-import com.abhi.kshan.ui.theme.CourierPrimeFontFamily
-import com.abhi.kshan.ui.theme.IceCyan
-import com.abhi.kshan.ui.theme.ObsidianGlass
-import com.abhi.kshan.ui.theme.SpaceDark
+import com.abhi.kshan.ui.theme.JetBrainsMonoFontFamily
+import com.abhi.kshan.ui.theme.KshanBackground
+import com.abhi.kshan.ui.theme.KshanBorder
+import com.abhi.kshan.ui.theme.KshanCyan
+import com.abhi.kshan.ui.theme.KshanPillShape
+import com.abhi.kshan.ui.theme.KshanSurface
 import com.abhi.kshan.ui.theme.SpaceGroteskFontFamily
 import com.abhi.kshan.ui.theme.TextMuted
 import com.abhi.kshan.ui.theme.TextPrimary
 import com.abhi.kshan.ui.theme.TextSecondary
-import com.abhi.kshan.ui.theme.TitaniumHairline
-import com.abhi.kshan.ui.theme.WarmChampagne
+import com.abhi.kshan.ui.theme.VisionGold
 import java.time.LocalDate
 import java.time.ZonedDateTime
 import kotlin.math.abs
 
 /**
- * Compact 52.dp Frameless Horizontal Crown Scrubber ("Leica / Swiss Watch Crown").
+ * Compact 52.dp Full-Pill Horizontal Crown Scrubber ("Leica / Swiss Watch Crown").
  *
- * Implements all Minimalist Luxury & Final Engineering Review specifications:
- * 1. Compact 52.dp frameless horizontal strip with `[ Start | End ]` or `[ Base | Shift ]` pill
- *    on the left and titanium ruler tick marks with a single white center needle on the right.
- * 2. Sub-tick continuous visual offset `(dragAccumulatorPx % stepPx)` with spring snap-back
- *    to `0f` (`animateFloatAsState(spring())`) when the finger lifts (`onDragEnd` / `onDragCancel`).
- * 3. Hard boundary clamping (`minValue..maxValue`, e.g. `0..9999` on Shift): when at `0` and
- *    dragging to decrease (or `9999` and dragging to increase), clamps `dragAccumulatorPx = 0f`,
- *    freezes sub-tick movement, and suppresses haptics.
- * 4. 16ms haptic rate-limiting (`SystemClock.uptimeMillis()`).
- * 5. Full TalkBack accessibility semantics (`customActions` + `setProgress`).
+ * Strict 4-Color, 2-Radius Design System:
+ * - Outer container: 52.dp height, #121620 surface, 1.dp Color.White.copy(alpha = 0.08f) border, RoundedCornerShape(100)
+ * - Left target selector pill: RoundedCornerShape(100) with #2ABFFF active highlight
+ * - Preserves sub-tick spring snap-back, 0..9999 hard boundary clamping, 16ms haptic rate-limiting, and TalkBack semantics.
  */
 @Composable
 fun MechanicalScrubRuler(
@@ -128,7 +123,6 @@ fun MechanicalScrubRuler(
     var committedTicks by remember { mutableIntStateOf(0) }
     var lastHapticUptimeMs by remember { mutableLongStateOf(0L) }
 
-    // Smooth spring snap-back to 0f when finger lifts
     val subTickVisualOffsetPx by animateFloatAsState(
         targetValue = if (isDragging) (dragAccumulatorPx % stepPx) else 0f,
         animationSpec = if (isDragging) {
@@ -160,12 +154,12 @@ fun MechanicalScrubRuler(
         modifier = modifier
             .fillMaxWidth()
             .height(52.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(ObsidianGlass)
+            .clip(KshanPillShape)
+            .background(KshanSurface)
             .border(
-                width = 0.8.dp,
-                color = TitaniumHairline,
-                shape = RoundedCornerShape(16.dp)
+                width = 1.dp,
+                color = KshanBorder,
+                shape = KshanPillShape
             )
             .padding(horizontal = 8.dp, vertical = 6.dp)
             .semantics {
@@ -190,40 +184,43 @@ fun MechanicalScrubRuler(
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Left Compact Target Selector Pill: [ Start | End ] or [ Base | Shift ]
+        // Left Compact Full-Pill Target Selector
         Row(
             modifier = Modifier
-                .clip(RoundedCornerShape(11.dp))
-                .background(SpaceDark)
-                .border(0.8.dp, TitaniumHairline, RoundedCornerShape(11.dp))
+                .clip(KshanPillShape)
+                .background(KshanBackground)
+                .border(1.dp, KshanBorder, KshanPillShape)
                 .padding(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             targetOptions.forEachIndexed { idx, rawLabel ->
-                // Keep pill label ultra-compact so it never crowds the dial strip
                 val shortLabel = when {
-                    rawLabel.startsWith("Start", ignoreCase = true) -> "Start"
-                    rawLabel.startsWith("End", ignoreCase = true) -> "End"
-                    rawLabel.startsWith("Base", ignoreCase = true) -> "Base"
-                    rawLabel.startsWith("Days", ignoreCase = true) -> "Shift"
+                    rawLabel.startsWith("Origin", ignoreCase = true) -> "Origin"
+                    rawLabel.startsWith("Horizon", ignoreCase = true) -> "Horizon"
+                    rawLabel.startsWith("Anchor", ignoreCase = true) -> "Anchor"
+                    rawLabel.startsWith("Sprint", ignoreCase = true) -> "Sprint"
+                    rawLabel.startsWith("Start", ignoreCase = true) -> "Origin"
+                    rawLabel.startsWith("End", ignoreCase = true) -> "Horizon"
+                    rawLabel.startsWith("Base", ignoreCase = true) -> "Anchor"
+                    rawLabel.startsWith("Days", ignoreCase = true) || rawLabel.startsWith("Shift", ignoreCase = true) -> "Sprint"
                     else -> rawLabel
                 }
                 val isSelected = idx == selectedTargetIndex
                 val pillBg by animateColorAsState(
-                    targetValue = if (isSelected) IceCyan.copy(alpha = 0.16f) else Color.Transparent,
+                    targetValue = if (isSelected) KshanCyan.copy(alpha = 0.16f) else Color.Transparent,
                     animationSpec = tween(160),
                     label = "scrub_target_bg"
                 )
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(9.dp))
+                        .clip(KshanPillShape)
                         .background(pillBg)
                         .then(
                             if (isSelected) {
                                 Modifier.border(
-                                    0.8.dp,
-                                    IceCyan.copy(alpha = 0.6f),
-                                    RoundedCornerShape(9.dp)
+                                    1.dp,
+                                    KshanCyan.copy(alpha = 0.6f),
+                                    KshanPillShape
                                 )
                             } else {
                                 Modifier
@@ -241,7 +238,7 @@ fun MechanicalScrubRuler(
                         fontFamily = SpaceGroteskFontFamily,
                         fontSize = 11.5.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) IceCyan else TextSecondary
+                        color = if (isSelected) KshanCyan else TextSecondary
                     )
                 }
             }
@@ -249,13 +246,13 @@ fun MechanicalScrubRuler(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Right Frameless Horizontal Titanium Dial Strip with Center White Laser Needle
+        // Right Full-Pill Horizontal Titanium Dial Strip with Center White Laser Needle
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF060911))
+                .clip(KshanPillShape)
+                .background(KshanBackground)
                 .pointerInput(selectedTargetIndex, stepPx) {
                     detectHorizontalDragGestures(
                         onDragStart = {
@@ -271,18 +268,13 @@ fun MechanicalScrubRuler(
                             dragAccumulatorPx = 0f
                         },
                         onHorizontalDrag = { change, dragAmount ->
-                            // Strictly consume horizontal drag events so parent containers never intercept
                             change.consume()
 
-                            // Physical tape-measure polarity:
-                            // Dragging thumb LEFT (dragAmount < 0) advances the tape (+1 day)
-                            // Dragging thumb RIGHT (dragAmount > 0) rewinds the tape (-1 day)
                             val proposedDelta = -dragAmount
                             val curVal = latestNumericValue
                             val minVal = latestMinValue
                             val maxVal = latestMaxValue
 
-                            // Hard boundary clamping for bounded numeric values (e.g. 0..9999 on Shift)
                             val isBlockedAtMin = curVal != null && minVal != null && curVal <= minVal && (dragAccumulatorPx + proposedDelta) < 0f
                             val isBlockedAtMax = curVal != null && maxVal != null && curVal >= maxVal && (dragAccumulatorPx + proposedDelta) > 0f
 
@@ -308,7 +300,6 @@ fun MechanicalScrubRuler(
                                     fireThrottledMechanicalTick()
                                     currentOnStepDelta(allowedSteps)
                                 } else {
-                                    // Reached hard boundary mid-drag: clamp accumulator & freeze offset
                                     dragAccumulatorPx = 0f
                                 }
                             }
@@ -324,8 +315,6 @@ fun MechanicalScrubRuler(
                 val centerX = w / 2f
                 val tickSpacing = stepPx.coerceAtLeast(8f)
                 val halfTicks = (w / (2f * tickSpacing)).toInt() + 3
-
-                // Subtract subTickVisualOffsetPx so ticks move continuously with the finger
                 val visualShift = -subTickVisualOffsetPx
 
                 for (i in -halfTicks..halfTicks) {
@@ -369,10 +358,10 @@ fun MechanicalScrubRuler(
                 drawRect(
                     brush = Brush.horizontalGradient(
                         colors = listOf(
-                            Color(0xFF060911),
+                            KshanBackground,
                             Color.Transparent,
                             Color.Transparent,
-                            Color(0xFF060911)
+                            KshanBackground
                         )
                     ),
                     size = size
@@ -392,13 +381,7 @@ fun MechanicalScrubRuler(
 }
 
 /**
- * Minimalist Luxury Hero Wrapper with Single-Line 3-Metric Strip.
- *
- * Replaces the cluttered curved rainbow arc and tall 3-card HorizontalPager with:
- * 1. Clean negative space around `heroContent()`.
- * 2. A quiet, single-line frosted strip below the hero result:
- *    `2w 6d  •  14 Workdays  •  480 Hours`
- *    computed dynamically via `TimeEngine.calculateCompactMetricsStrip`.
+ * Hero Wrapper with Single-Line 3-Metric Strip (preserved for backward compatibility).
  */
 @Composable
 fun TemporalConstellationHero(
@@ -421,7 +404,6 @@ fun TemporalConstellationHero(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // 1. Clean Hero Readout in Generous Negative Space
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -433,17 +415,16 @@ fun TemporalConstellationHero(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // 2. Single-Line Frosted 3-Metric Strip: "2w 6d  •  14 Workdays  •  480 Hours"
         Box(
             modifier = Modifier
                 .padding(horizontal = 22.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(ObsidianGlass)
+                .clip(RoundedCornerShape(24.dp))
+                .background(KshanSurface)
                 .border(
-                    width = 0.8.dp,
-                    color = TitaniumHairline,
-                    shape = RoundedCornerShape(16.dp)
+                    width = 1.dp,
+                    color = KshanBorder,
+                    shape = RoundedCornerShape(24.dp)
                 )
                 .padding(horizontal = 16.dp, vertical = 12.dp)
                 .testTag("compact_three_metric_strip"),
@@ -456,10 +437,13 @@ fun TemporalConstellationHero(
             ) {
                 Text(
                     text = metricsStrip.weeksAndDaysText,
-                    fontFamily = CourierPrimeFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
+                    style = TextStyle(
+                        fontFamily = JetBrainsMonoFontFamily,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFeatureSettings = "tnum",
+                        color = TextPrimary
+                    )
                 )
                 Text(
                     text = "  •  ",
@@ -469,10 +453,13 @@ fun TemporalConstellationHero(
                 )
                 Text(
                     text = metricsStrip.workdaysText,
-                    fontFamily = CourierPrimeFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = IceCyan
+                    style = TextStyle(
+                        fontFamily = JetBrainsMonoFontFamily,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFeatureSettings = "tnum",
+                        color = KshanCyan
+                    )
                 )
                 Text(
                     text = "  •  ",
@@ -482,10 +469,13 @@ fun TemporalConstellationHero(
                 )
                 Text(
                     text = metricsStrip.hoursText,
-                    fontFamily = CourierPrimeFontFamily,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextSecondary
+                    style = TextStyle(
+                        fontFamily = JetBrainsMonoFontFamily,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFeatureSettings = "tnum",
+                        color = TextSecondary
+                    )
                 )
             }
         }
@@ -493,10 +483,7 @@ fun TemporalConstellationHero(
 }
 
 /**
- * Interactive 365-Dot Matrix Grid for the Year & Season Progress Card.
- *
- * Uses `event.repeatsYearly` via `TimeEngine.projectEventDayOfYear(zdt, ev.repeatsYearly, currentYear)`
- * so recurring annual events glow as Warm Champagne milestone stars across every year.
+ * Interactive 365-Dot Matrix Grid for the Year & Season Progress Card on Tab 4 (Pulse).
  */
 @Composable
 fun YearDotMatrixGrid(
@@ -510,7 +497,6 @@ fun YearDotMatrixGrid(
     val view = LocalView.current
     var selectedDay by remember(currentYear, dayOfYear) { mutableIntStateOf(dayOfYear) }
 
-    // Map dayOfYear -> list of milestone titles projected onto currentYear using event.repeatsYearly
     val milestonesByDay = remember(savedEvents, currentYear) {
         val map = mutableMapOf<Int, MutableList<String>>()
         savedEvents.forEach { ev ->
@@ -546,16 +532,15 @@ fun YearDotMatrixGrid(
             .fillMaxWidth()
             .testTag("year_dot_matrix_grid")
     ) {
-        // Legend Row
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                MatrixLegendItem(color = IceCyan, label = "Elapsed")
+                MatrixLegendItem(color = KshanCyan, label = "Elapsed")
                 MatrixLegendItem(color = Color.White, label = "Today")
-                MatrixLegendItem(color = WarmChampagne, label = "Milestone ★")
+                MatrixLegendItem(color = VisionGold, label = "Kshan ★")
             }
             Text(
                 text = "Tap any dot",
@@ -567,14 +552,13 @@ fun YearDotMatrixGrid(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // High-Performance Single Canvas 365-Dot Matrix with Tap Hit-Testing
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(216.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color(0xFF060911))
-                .border(0.8.dp, TitaniumHairline, RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(24.dp))
+                .background(KshanBackground)
+                .border(1.dp, KshanBorder, RoundedCornerShape(24.dp))
                 .padding(12.dp)
         ) {
             Canvas(
@@ -632,7 +616,7 @@ fun YearDotMatrixGrid(
                     when {
                         isToday -> {
                             drawCircle(
-                                color = IceCyan.copy(alpha = 0.4f * pulse),
+                                color = KshanCyan.copy(alpha = 0.45f * pulse),
                                 radius = baseRadius * (1.8f + 0.6f * pulse),
                                 center = center
                             )
@@ -644,26 +628,26 @@ fun YearDotMatrixGrid(
                         }
                         isMilestone -> {
                             drawCircle(
-                                color = WarmChampagne.copy(alpha = 0.3f * pulse),
+                                color = VisionGold.copy(alpha = 0.3f * pulse),
                                 radius = baseRadius * 1.9f,
                                 center = center
                             )
                             drawCircle(
-                                color = WarmChampagne,
+                                color = VisionGold,
                                 radius = baseRadius * 1.25f,
                                 center = center
                             )
                         }
                         isElapsed -> {
                             drawCircle(
-                                color = IceCyan.copy(alpha = 0.78f),
+                                color = KshanCyan.copy(alpha = 0.78f),
                                 radius = baseRadius,
                                 center = center
                             )
                         }
                         else -> {
                             drawCircle(
-                                color = Color(0xFF1E293B),
+                                color = Color.White.copy(alpha = 0.14f),
                                 radius = baseRadius * 0.88f,
                                 center = center
                             )
@@ -675,7 +659,6 @@ fun YearDotMatrixGrid(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Interactive Selected Dot Telemetry Bar
         val inspectedDate = remember(currentYear, selectedDay) {
             LocalDate.ofYearDay(currentYear, selectedDay.coerceIn(1, totalDaysInYear))
         }
@@ -684,14 +667,14 @@ fun YearDotMatrixGrid(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(ObsidianGlass)
+                .clip(KshanPillShape)
+                .background(KshanBackground)
                 .border(
-                    width = 0.8.dp,
-                    color = if (!inspectedEvents.isNullOrEmpty()) WarmChampagne.copy(alpha = 0.55f) else TitaniumHairline,
-                    shape = RoundedCornerShape(12.dp)
+                    width = 1.dp,
+                    color = if (!inspectedEvents.isNullOrEmpty()) VisionGold.copy(alpha = 0.55f) else KshanBorder,
+                    shape = KshanPillShape
                 )
-                .padding(horizontal = 12.dp, vertical = 8.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -706,7 +689,7 @@ fun YearDotMatrixGrid(
                         Icon(
                             imageVector = Icons.Default.Star,
                             contentDescription = null,
-                            tint = WarmChampagne,
+                            tint = VisionGold,
                             modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -725,8 +708,8 @@ fun YearDotMatrixGrid(
                         },
                         fontFamily = SpaceGroteskFontFamily,
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (!inspectedEvents.isNullOrEmpty()) WarmChampagne else TextPrimary,
+                        fontWeight = FontWeight.Medium,
+                        color = if (!inspectedEvents.isNullOrEmpty()) VisionGold else TextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -736,10 +719,13 @@ fun YearDotMatrixGrid(
 
                 Text(
                     text = "DAY $selectedDay/$totalDaysInYear",
-                    fontFamily = CourierPrimeFontFamily,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = IceCyan
+                    style = TextStyle(
+                        fontFamily = JetBrainsMonoFontFamily,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFeatureSettings = "tnum",
+                        color = KshanCyan
+                    )
                 )
             }
         }
